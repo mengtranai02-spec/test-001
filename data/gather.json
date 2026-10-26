@@ -1,0 +1,41 @@
+{
+ "_doc": "Luật thu thập, khoá = id nhóm trong props.json (tree, log, rock_small, rock_big...). verb / target_name: chữ hiện trên nút tương tác. icon: pickup | chop | smash (icon của nút). hits: số đòn để xong (1 = nhặt luôn). reach: tầm với tính bằng ô, đo từ chân người chơi tới chân vật thể. cooldown: giây giữa hai đòn. repeat: true = giữ nút để đánh liên tục, false = mỗi lần bấm một đòn. tool: id vật phẩm bắt buộc phải có trong túi (rỗng = không cần). drops: [{item, min, max, chance (mặc định 1)}] rơi khi đòn cuối. leaves: danh sách sprite để lại sau khi xong (chọn ngẫu nhiên cố định theo vị trí), [] = vật thể biến mất. fx: wood | stone (màu mảnh vụn bắn ra). Mục sprites ghi đè luật theo tên sprite cụ thể (chỉ cần ghi khoá muốn đổi).",
+ "rules": {
+  "tree": {
+   "verb": "Chặt", "target_name": "cây", "icon": "chop",
+   "hits": 4, "reach": 1.1, "cooldown": 0.55, "repeat": true, "tool": "",
+   "drops": [{"item": "wood", "min": 2, "max": 4}],
+   "leaves": ["stump_1", "stump_2", "stump_3", "stump_4", "stump_5"],
+   "fx": "wood"
+  },
+  "log": {
+   "verb": "Chặt", "target_name": "khúc gỗ", "icon": "chop",
+   "hits": 2, "reach": 1.3, "cooldown": 0.5, "repeat": true, "tool": "",
+   "drops": [{"item": "wood", "min": 1, "max": 2}],
+   "leaves": [],
+   "fx": "wood"
+  },
+  "rock_small": {
+   "verb": "Nhặt", "target_name": "đá", "icon": "pickup",
+   "hits": 1, "reach": 0.9, "cooldown": 0.3, "repeat": false, "tool": "",
+   "drops": [{"item": "stone", "min": 1, "max": 3}],
+   "leaves": [],
+   "fx": "stone"
+  },
+  "rock_big": {
+   "verb": "Đập", "target_name": "tảng đá", "icon": "smash",
+   "hits": 5, "reach": 1.5, "cooldown": 0.6, "repeat": true, "tool": "",
+   "drops": [{"item": "stone", "min": 3, "max": 6}],
+   "leaves": [],
+   "fx": "stone"
+  }
+ },
+ "sprites": {
+  "tree_3": {"hits": 2, "drops": [{"item": "wood", "min": 1, "max": 2}]},
+  "tree_7": {"hits": 2, "drops": [{"item": "wood", "min": 1, "max": 2}]},
+  "tree_8": {"hits": 2, "drops": [{"item": "wood", "min": 1, "max": 2}]},
+  "rock_big_2": {"hits": 3, "drops": [{"item": "stone", "min": 2, "max": 4}]},
+  "rock_big_3": {"hits": 3, "drops": [{"item": "stone", "min": 2, "max": 4}]},
+  "rock_big_6": {"hits": 7, "drops": [{"item": "stone", "min": 5, "max": 8}]}
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "_doc": "Dữ liệu các loại mob, khoá = giá trị mob_type (mod1, mod2). collider: elip chắn mob, offset và radius (nửa rộng, nửa cao) tính bằng px, offset tính từ gốc node (chân), y dương = xuống dưới. Loại mob không có trong file này sẽ dùng mục \"default\".",
+ "default": {
+  "collider": {"shape": "ellipse", "offset": [0, -6], "radius": [12, 6]}
+ },
+ "mobs": {
+  "mod1": {
+   "collider": {"shape": "ellipse", "offset": [0, -6], "radius": [12, 6]}
+  },
+  "mod2": {
+   "collider": {"shape": "ellipse", "offset": [0, -6], "radius": [12, 6]}
+  }
+ }
+}

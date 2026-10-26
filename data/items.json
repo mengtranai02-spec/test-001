@@ -1,0 +1,20 @@
+{
+ "_doc": "Vật phẩm trong túi đồ. inventory.slots = số ô túi, inventory.columns = số cột khi hiển thị. Mỗi vật phẩm: name, desc, stack (số lượng tối đa mỗi ô), icon (đường dẫn ảnh; chưa có file thì game tự vẽ hình tạm theo placeholder), placeholder.shape = stone | log | (khác: vẽ chữ cái đầu) và placeholder.color = [r, g, b] 0..1. Muốn thêm vật phẩm mới chỉ cần thêm một khoá ở đây rồi dùng id đó trong gather.json.",
+ "inventory": {"slots": 20, "columns": 5},
+ "items": {
+  "stone": {
+   "name": "Đá",
+   "desc": "Đá nhặt được ngoài đồng hoặc đập từ tảng đá lớn. Nguyên liệu xây dựng và chế tạo.",
+   "stack": 99,
+   "icon": "res://assets/items/stone.png",
+   "placeholder": {"shape": "stone", "color": [0.62, 0.63, 0.68]}
+  },
+  "wood": {
+   "name": "Gỗ",
+   "desc": "Gỗ chặt từ cây hoặc khúc gỗ. Nguyên liệu xây dựng và chế tạo.",
+   "stack": 99,
+   "icon": "res://assets/items/wood.png",
+   "placeholder": {"shape": "log", "color": [0.64, 0.43, 0.25]}
+  }
+ }
+}

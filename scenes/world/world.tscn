@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://ddxu0lf4teppu"]
+
+[ext_resource type="Script" uid="uid://c2gj1jh7qkai3" path="res://scripts/world/world.gd" id="1_world"]
+[ext_resource type="PackedScene" path="res://scenes/world/map.tscn" id="2_map"]
+[ext_resource type="PackedScene" uid="uid://chvye4rwycnjs" path="res://scenes/characters/player.tscn" id="3_player"]
+
+[node name="World" type="Node2D" unique_id=1167498308]
+script = ExtResource("1_world")
+map_scene = ExtResource("2_map")
+player_scene = ExtResource("3_player")

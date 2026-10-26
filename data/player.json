@@ -1,0 +1,4 @@
+{
+ "_doc": "Dữ liệu người chơi. collider: elip chắn người chơi, offset và radius (nửa rộng, nửa cao) tính bằng px, offset tính từ gốc node (chân), y dương = xuống dưới. Bật nút Collider trong game để xem viền xanh và canh lại số.",
+ "collider": {"shape": "ellipse", "offset": [0, -6], "radius": [14, 7]}
+}
