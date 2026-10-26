@@ -6,12 +6,11 @@ extends Node2D
 @export var world_seed := 7
 
 const MOB_TYPES := ["mod1", "mod2"]
-const ActionButton := preload("res://scripts/world/action_button.gd")
+const HudButton := preload("res://scripts/ui/hud_button.gd")
 const NightGlow := preload("res://scripts/world/night_glow.gd")
 const Inventory := preload("res://scripts/inventory/inventory.gd")
 const InventoryUI := preload("res://scripts/inventory/inventory_ui.gd")
 const GatherSystem := preload("res://scripts/gather/gather_system.gd")
-const InteractButton := preload("res://scripts/gather/interact_button.gd")
 const LootSystem := preload("res://scripts/gather/loot_system.gd")
 const LootPanel := preload("res://scripts/gather/loot_panel.gd")
 
@@ -59,7 +58,7 @@ var _player: Node2D
 var _inventory                     # Inventory (inventory.gd)
 var _inventory_ui: Control         # inventory_ui.gd
 var _gather                        # gather_system.gd
-var _interact_button: Control      # interact_button.gd
+var _interact_button: HudButton    # nút tương tác theo ngữ cảnh (Chặt / Đập / Nhặt)
 var _loot                          # loot_system.gd
 var _loot_panel: Control           # loot_panel.gd
 var _seed_input: LineEdit
@@ -76,6 +75,7 @@ var _respawn_timer := RESPAWN_INTERVAL
 
 
 func _ready() -> void:
+	_register_actions()
 	_rng.randomize()
 	# Vật / thực thể (con trực tiếp của node này) nằm thấp hơn trên màn hình => gần camera hơn => vẽ đè lên vật phía sau.
 	y_sort_enabled = true
@@ -246,24 +246,36 @@ func _create_mobile_joystick() -> void:
 	var joystick := Control.new()
 	joystick.set_script(preload("res://scripts/world/mobile_joystick.gd"))
 	layer.add_child(joystick)
-	# Nút hành động (số liệu tính theo chiều cao màn hình). Hiện chỉ có nút chạy; phun lửa và vòng ma pháp
-	# tạm bỏ, sẽ quay lại khi có hệ thống kỹ năng (thêm lại bằng _add_action_button(layer, &"fire", "fire", ...)).
-	_add_action_button(layer, &"run", "run", 0.160, 0.462, 0.237)
+	# Hiện chỉ có nút chạy; phun lửa và vòng ma pháp tạm bỏ, sẽ quay lại khi có hệ thống kỹ năng.
+	_add_hud_button(layer, &"run", "run", 0.160, 0.462, 0.237)
 
 
-func _add_action_button(layer: CanvasLayer, action: StringName, icon: String, size_h: float, from_right_h: float, from_bottom_h: float) -> void:
-	var button := Control.new()
-	button.set_script(ActionButton)
-	button.set("action", action)
-	button.set("icon_kind", icon)
-	button.set("size_h", size_h)
-	button.set("from_right_h", from_right_h)
-	button.set("from_bottom_h", from_bottom_h)
+## Nút trên màn hình: kích thước và vị trí tính theo chiều cao màn hình (xem hud_button.gd).
+func _add_hud_button(layer: CanvasLayer, action: StringName, icon: String, size_h: float, from_right_h: float, from_bottom_h: float) -> HudButton:
+	var button := HudButton.new()
+	button.action = action
+	button.icon_kind = icon
+	button.size_h = size_h
+	button.from_right_h = from_right_h
+	button.from_bottom_h = from_bottom_h
 	layer.add_child(button)
+	return button
 
 
-## Túi đồ + thu thập: nút túi và bảng túi đồ (layer 5, đè lên minimap), nút tương tác theo ngữ cảnh, hệ thống thu thập,
-## vật phẩm rơi trên đất + danh sách nhặt.
+## Phím tắt của giao diện, đăng ký một lần ở đây (phím di chuyển do player.gd tự đăng ký).
+func _register_actions() -> void:
+	for pair in [["interact", KEY_E], ["pickup", KEY_F], ["inventory", KEY_I]]:
+		var action := StringName(pair[0])
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		var ev := InputEventKey.new()
+		ev.physical_keycode = pair[1]
+		if not InputMap.action_has_event(action, ev):
+			InputMap.action_add_event(action, ev)
+
+
+## Túi đồ + thu thập (layer 5, đè lên minimap): nút túi và bảng túi đồ, nút tương tác theo ngữ cảnh,
+## hệ thống thu thập, vật phẩm rơi trên đất + danh sách nhặt.
 func _create_inventory_and_gather() -> void:
 	_inventory = Inventory.new()
 	var layer := CanvasLayer.new() # CanvasLayer riêng nên không bị CanvasModulate ban đêm nhuộm tối
@@ -276,18 +288,22 @@ func _create_inventory_and_gather() -> void:
 	_inventory_ui.set_script(InventoryUI)
 	layer.add_child(_inventory_ui)
 	_inventory_ui.setup(_inventory)
-	_interact_button = Control.new()
-	_interact_button.set_script(InteractButton)
-	layer.add_child(_interact_button)
+
+	_interact_button = _add_hud_button(layer, &"interact", "", 0.16, 0.462, 0.50)
+	_interact_button.hide_when_idle = true
+	_interact_button.visible = false
+
 	_gather = GatherSystem.new()
 	add_child(_gather)
 	_gather.setup(_map, _player, _inventory, _inventory_ui)
-	_gather.prompt_changed.connect(Callable(_interact_button, "set_prompt"))
+	_gather.prompt_changed.connect(_interact_button.set_prompt)
+
 	_loot = LootSystem.new()
 	add_child(_loot)
 	_loot.setup(_map, _player, _inventory, _inventory_ui)
-	_loot_panel.setup(_loot)
+	_loot_panel.setup(_loot, _inventory_ui.bag_button())
 	_gather.drops_spawned.connect(Callable(_loot, "spawn_drops")) # chặt cây / đập đá xong => vật phẩm rơi ra đất
+	_inventory_ui.item_dropped.connect(Callable(_loot, "drop_at_player")) # kéo vật phẩm ra ngoài bảng túi => vứt ra đất
 
 
 func _create_day_night() -> void:

@@ -1,0 +1,9 @@
+res://scenes/characters/player.tscn
+res://scripts/gather/gather_system.gd
+res://scripts/gather/loot_panel.gd
+res://scripts/gather/loot_system.gd
+res://scripts/inventory/inventory.gd
+res://scripts/inventory/inventory_ui.gd
+res://scripts/inventory/item_defs.gd
+res://scripts/world/world.gd
+res://scripts/inventory/item_icon.gd

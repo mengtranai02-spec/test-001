@@ -137,6 +137,4 @@ position_smoothing_speed = 8.0
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=296484472]
 position = Vector2(0, -40)
 sprite_frames = SubResource("SpriteFrames_cfjqp")
-animation = &"walk"
-frame = 11
-frame_progress = 0.32546154
+animation = &"idle"

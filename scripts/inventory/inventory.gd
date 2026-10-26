@@ -12,7 +12,7 @@ var slots: Array = []
 
 func _init(slot_count: int = -1) -> void:
 	ItemDefs.ensure_loaded()
-	var n := slot_count if slot_count > 0 else ItemDefs.slots
+	var n := slot_count if slot_count > 0 else ItemDefs.SLOTS
 	for i in n:
 		slots.append({})
 
@@ -35,11 +35,6 @@ func used_slots() -> int:
 		if not s.is_empty():
 			n += 1
 	return n
-
-
-## Có nhét thêm được amount vật phẩm id không.
-func can_add(id: String, amount: int) -> bool:
-	return _add_into(_copy_slots(), id, amount) == 0
 
 
 ## drops: [{"id": String, "count": int}, ...] có nhét hết được không (kiểm tra trước, không thay đổi túi).
@@ -110,6 +105,22 @@ func move_slot(a: int, b: int) -> void:
 	slots[a] = sb
 	slots[b] = sa
 	changed.emit()
+
+
+## Tách amount vật phẩm ở ô index sang ô trống đầu tiên. Trả về chỉ số ô mới, -1 nếu không tách được (không còn ô trống, hoặc amount không nằm trong 1..count-1).
+func split(index: int, amount: int) -> int:
+	if index < 0 or index >= slots.size() or (slots[index] as Dictionary).is_empty():
+		return -1
+	var s: Dictionary = slots[index]
+	if amount < 1 or amount >= int(s["count"]):
+		return -1
+	for i in slots.size():
+		if (slots[i] as Dictionary).is_empty():
+			slots[i] = {"id": s["id"], "count": amount}
+			s["count"] = int(s["count"]) - amount
+			changed.emit()
+			return i
+	return -1
 
 
 ## Gom các chồng cùng loại lại và xếp theo thứ tự khai báo trong items.json.

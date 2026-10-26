@@ -1,6 +1,6 @@
 extends Node
 ## Thu thập: tìm vật thể (cây, khúc gỗ, đá nhỏ, tảng đá) trong tầm với của người chơi theo luật data/gather.json,
-## ra đòn khi bấm "interact" (phím E / nút tương tác), phát vật phẩm và đổi vật thể (cây -> gốc cây, đá -> biến mất).
+## ra đòn khi bấm "interact" (phím E / nút tương tác), phát vật phẩm rồi xoá vật thể (cây, đá... đều biến mất).
 ## Chặt / đập: vật phẩm rơi ra đất (signal drops_spawned, loot_system.gd lo phần nhặt). Nhặt thẳng (icon "pickup"): vào túi luôn.
 ## Gọi setup() một lần sau khi map, người chơi, túi đồ và giao diện đã có.
 
@@ -17,7 +17,7 @@ const FX_COLORS := {
 const RULE_DEFAULTS := {
 	"verb": "Tương tác", "target_name": "", "icon": "pickup",
 	"hits": 1, "reach": 1.0, "cooldown": 0.4, "repeat": false, "tool": "",
-	"drops": [], "leaves": [], "fx": "",
+	"drops": [], "fx": "",
 }
 
 ## icon_kind rỗng = không có mục tiêu (ẩn nút). label = chữ hiện dưới nút tương tác.
@@ -69,7 +69,6 @@ class HitBar extends Node2D:
 
 func _ready() -> void:
 	_rng.randomize()
-	_ensure_action("interact", KEY_E)
 	_load_rules()
 
 
@@ -175,9 +174,7 @@ func _strike(t: Dictionary) -> void:
 	else:
 		for d: Dictionary in drops:
 			inventory.add(d["id"], int(d["count"]))
-	var leaves: Array = rule["leaves"]
-	var new_name := "" if leaves.is_empty() else str(leaves[absi(hash(key)) % leaves.size()])
-	map.replace_prop(key, new_name)
+	map.replace_prop(key, "") # vật thể biến mất hẳn (cây không còn để lại gốc)
 	_target = {}
 	_set_target(_find_target())
 	_emit_prompt()
@@ -279,12 +276,3 @@ func _load_rules() -> void:
 	_rules = raw.get("rules", {})
 	_sprite_rules = raw.get("sprites", {})
 	_rule_cache.clear()
-
-
-func _ensure_action(action: StringName, keycode: Key) -> void:
-	if not InputMap.has_action(action):
-		InputMap.add_action(action)
-	var ev := InputEventKey.new()
-	ev.physical_keycode = keycode
-	if not InputMap.action_has_event(action, ev):
-		InputMap.action_add_event(action, ev)

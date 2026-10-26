@@ -1,13 +1,15 @@
 extends RefCounted
-## Dữ liệu vật phẩm: res://data/items.json (tên, mô tả, số lượng tối đa mỗi ô, icon, cấu hình túi đồ).
+## Dữ liệu vật phẩm: res://data/items.json (tên, mô tả, số lượng tối đa mỗi ô, icon). Số ô túi và kích thước icon là hằng số ở đây.
 ## Icon vật phẩm: nếu file ảnh có thì dùng, chưa có thì item_icon.gd tự vẽ hình tạm.
 ## Icon giao diện tuỳ chọn: res://assets/ui/<tên>.png (bag, pickup, chop, smash); thiếu file thì dùng hình vẽ bằng code.
 
 const DATA_PATH := "res://data/items.json"
 const UI_ICON_DIR := "res://assets/ui/"
 
-static var slots := 20
-static var columns := 5
+const ICON_SIZE := 32.0   # kích thước vật phẩm (px) ở mọi nơi: trên đất, trong túi, trong danh sách nhặt
+const SLOTS := 40         # số ô túi đồ
+const COLUMNS := 8
+
 static var items: Dictionary = {}  # id -> {name, desc, stack, icon_path, shape, color}
 static var _loaded := false
 static var _texture_cache: Dictionary = {}
@@ -21,9 +23,6 @@ static func ensure_loaded() -> void:
 	if not (raw is Dictionary):
 		push_warning("Không đọc được %s" % DATA_PATH)
 		return
-	var inv: Dictionary = raw.get("inventory", {})
-	slots = maxi(1, int(inv.get("slots", slots)))
-	columns = clampi(int(inv.get("columns", columns)), 1, slots)
 	var defs: Dictionary = raw.get("items", {})
 	for id in defs:
 		var d: Dictionary = defs[id]

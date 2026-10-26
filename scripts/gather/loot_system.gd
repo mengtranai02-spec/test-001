@@ -1,7 +1,7 @@
 extends Node
 ## Vật phẩm rơi trên đất: chặt cây / đập đá xong thì vật phẩm bắn ra quanh vật thể, nằm đó cho tới khi được nhặt.
 ## Quét các vật phẩm quanh người chơi, báo danh sách cho loot_panel.gd hiển thị, nhặt bằng phím F (món gần nhất)
-## hoặc bằng cách chạm vào dòng của món đó trên danh sách. Gọi setup() một lần sau khi map, người chơi, túi đồ và giao diện đã có.
+## hoặc bằng cách chạm vào dòng của món đó trên danh sách (phím F là action "pickup", đăng ký ở world.gd). Gọi setup() một lần sau khi map, người chơi, túi đồ và giao diện đã có.
 
 const ItemDefs := preload("res://scripts/inventory/item_defs.gd")
 
@@ -30,10 +30,11 @@ var _rng := RandomNumberGenerator.new()
 
 ## Một vật phẩm nằm trên đất: bóng + icon (icon nhấp nhô nhẹ cho dễ thấy). Là con của lớp vật thể để y-sort chung.
 class Drop extends Node2D:
+	const ItemDefs := preload("res://scripts/inventory/item_defs.gd")
 	const ItemIcon := preload("res://scripts/inventory/item_icon.gd")
-	const ICON_SIZE := 46.0
-	const ARC_HEIGHT := 46.0     # độ cao đường bay lúc văng ra (px)
-	const BOB := 5.0             # biên độ nhấp nhô (px)
+	const ICON_SIZE := ItemDefs.ICON_SIZE
+	const ARC_HEIGHT := 36.0     # độ cao đường bay lúc văng ra (px)
+	const BOB := 4.0             # biên độ nhấp nhô (px)
 
 	var id := ""
 	var count := 1
@@ -84,13 +85,12 @@ class Drop extends Node2D:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	func _draw_icon() -> void:
-		var rect := Rect2(Vector2(-ICON_SIZE * 0.5, -ICON_SIZE - 8.0), Vector2(ICON_SIZE, ICON_SIZE))
+		var rect := Rect2(Vector2(-ICON_SIZE * 0.5, -ICON_SIZE - 4.0), Vector2(ICON_SIZE, ICON_SIZE))
 		ItemIcon.draw(_icon, id, rect)
 
 
 func _ready() -> void:
 	_rng.randomize()
-	_ensure_action("pickup", KEY_F)
 
 
 func setup(p_map, p_player: Node2D, p_inventory, p_hud) -> void:
@@ -124,6 +124,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 # ---------------------------------------------------------------- rơi vật phẩm
+
+## Vứt từ túi đồ: rơi quanh chân người chơi.
+func drop_at_player(id: String, amount: int) -> void:
+	if is_instance_valid(player):
+		spawn_drops(player.global_position, [{"id": id, "count": amount}])
+
 
 ## Gọi khi chặt / đập xong: drops = [{"id": String, "count": int}, ...] văng ra quanh world_pos.
 func spawn_drops(world_pos: Vector2, drops: Array) -> void:
@@ -243,11 +249,3 @@ func _on_world_reset() -> void:
 	_last_sig = []
 	nearby_changed.emit([])
 
-
-func _ensure_action(action: StringName, keycode: Key) -> void:
-	if not InputMap.has_action(action):
-		InputMap.add_action(action)
-	var ev := InputEventKey.new()
-	ev.physical_keycode = keycode
-	if not InputMap.action_has_event(action, ev):
-		InputMap.action_add_event(action, ev)
