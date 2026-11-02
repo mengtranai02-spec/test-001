@@ -28,11 +28,11 @@ var _scan := 0.0
 var _rng := RandomNumberGenerator.new()
 
 
-## Một vật phẩm nằm trên đất: bóng + icon (icon nhấp nhô nhẹ cho dễ thấy). Là con của lớp vật thể để y-sort chung.
+## Một vật phẩm nằm trên đất: bóng + ảnh vật phẩm (ảnh nhấp nhô nhẹ cho dễ thấy). Là con của lớp vật thể để y-sort chung.
 class Drop extends Node2D:
 	const ItemDefs := preload("res://scripts/inventory/item_defs.gd")
 	const ItemIcon := preload("res://scripts/inventory/item_icon.gd")
-	const ICON_SIZE := ItemDefs.ICON_SIZE
+	const ICON_BOX := 48.0       # khung chứa ảnh vật phẩm trên đất (ảnh vừa khung, giữ tỉ lệ)
 	const ARC_HEIGHT := 36.0     # độ cao đường bay lúc văng ra (px)
 	const BOB := 4.0             # biên độ nhấp nhô (px)
 
@@ -42,7 +42,6 @@ class Drop extends Node2D:
 	var _icon: Node2D
 
 	func _ready() -> void:
-		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST # icon pixel art
 		_icon = Node2D.new()
 		add_child(_icon)
 		_icon.draw.connect(_draw_icon)
@@ -81,12 +80,13 @@ class Drop extends Node2D:
 
 	func _draw() -> void:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.45))
-		draw_circle(Vector2.ZERO, ICON_SIZE * 0.32, Color(0.0, 0.0, 0.0, 0.28))
+		draw_circle(Vector2.ZERO, ICON_BOX * 0.36, Color(0.0, 0.0, 0.0, 0.28))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	func _draw_icon() -> void:
-		var rect := Rect2(Vector2(-ICON_SIZE * 0.5, -ICON_SIZE - 4.0), Vector2(ICON_SIZE, ICON_SIZE))
-		ItemIcon.draw(_icon, id, rect)
+		# Đáy ảnh áp sát bóng (bottom = true); bóng đổ riêng của ảnh tắt vì đã có bóng elip dưới đất.
+		var rect := Rect2(Vector2(-ICON_BOX * 0.5, -ICON_BOX - 2.0), Vector2(ICON_BOX, ICON_BOX))
+		ItemIcon.draw(_icon, id, rect, false, true)
 
 
 func _ready() -> void:

@@ -13,6 +13,7 @@ const InventoryUI := preload("res://scripts/inventory/inventory_ui.gd")
 const GatherSystem := preload("res://scripts/gather/gather_system.gd")
 const LootSystem := preload("res://scripts/gather/loot_system.gd")
 const LootPanel := preload("res://scripts/gather/loot_panel.gd")
+const PilThrower := preload("res://scripts/pilmon/pil_thrower.gd")
 
 # --- sinh mob lần đầu khi chunk được dựng (kể cả vùng ban đầu) ---
 const SPAWN_CHANCE := 0.6                     # xác suất mỗi chunk mới có mob
@@ -61,6 +62,7 @@ var _gather                        # gather_system.gd
 var _interact_button: HudButton    # nút tương tác theo ngữ cảnh (Chặt / Đập / Nhặt)
 var _loot                          # loot_system.gd
 var _loot_panel: Control           # loot_panel.gd
+var _pil_thrower                   # pil_thrower.gd: ném Pilball bắt mob
 var _seed_input: LineEdit
 var _coordinate_label: Label
 var _minimap: Control
@@ -95,6 +97,7 @@ func _ready() -> void:
 	_create_gameplay_ui()
 	_create_day_night()
 	_create_inventory_and_gather()
+	_create_pilball()
 
 
 func _process(delta: float) -> void:
@@ -306,6 +309,32 @@ func _create_inventory_and_gather() -> void:
 	_inventory_ui.item_dropped.connect(Callable(_loot, "drop_at_player")) # kéo vật phẩm ra ngoài bảng túi => vứt ra đất
 
 
+## Nút "Ném Pilball" + hệ thống ném bắt mob (xem pil_thrower.gd): bật chế độ ném thì hiện joystick ném riêng (bên phải), kéo ngược hướng muốn ném, thả để ném.
+func _create_pilball() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 1
+	add_child(layer)
+	var button := _add_hud_button(layer, &"", "pilball", 0.207, 0.230, 0.234)
+	_pil_thrower = PilThrower.new()
+	add_child(_pil_thrower)
+	_pil_thrower.setup(_map, _player, _mobs, button, layer)
+	var attack_button := _add_hud_button(layer, &"attack", "attack", 0.16, 0.462, 0.76)
+	attack_button.set_prompt("attack", "Tấn công")
+
+
+func _create_player_health_ui(panel: Control) -> void:
+	var health_label := Label.new()
+	health_label.add_theme_font_size_override("font_size", 22)
+	health_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	health_label.add_theme_constant_override("outline_size", 5)
+	health_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(health_label)
+	var update_health := func(current: float, maximum: float) -> void:
+		health_label.text = "Máu: %d / %d%s" % [int(current), int(maximum), " — Hồi sinh sau 2 giây" if current <= 0.0 else ""]
+	_player.connect("health_changed", update_health)
+	update_health.call(float(_player.get("health")), float(_player.get("max_health")))
+
+
 func _create_day_night() -> void:
 	var offsets := PackedFloat32Array()
 	var colors := PackedColorArray()
@@ -415,6 +444,7 @@ func _create_gameplay_ui() -> void:
 		_map.show_colliders = on
 		colliders.text = "Collider: ON" if on else "Collider: OFF")
 	panel.add_child(colliders)
+	_create_player_health_ui(panel)
 
 
 ## Điều khiển ngày đêm: thanh trượt chọn giờ + nút bật / tắt tự trôi.
@@ -450,6 +480,7 @@ func _apply_seed_from_ui() -> void:
 		_seed_input.text = str(world_seed)
 		return
 	world_seed = _seed_input.text.to_int()
+	_pil_thrower.reset_throws()
 	_clear_mobs() # mob + sức chứa chunk của thế giới cũ không còn hợp lệ
 	_map.set_world_seed(world_seed)
 	_minimap.clear_exploration()

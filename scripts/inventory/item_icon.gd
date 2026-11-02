@@ -1,82 +1,63 @@
 extends RefCounted
-## Vẽ icon vật phẩm vào một ô vuông của canvas (gọi trong _draw). Có ảnh thì dùng ảnh, chưa có thì vẽ hình tạm.
+## Hiển thị ảnh vật phẩm (trong túi, danh sách nhặt, vật rơi trên map): mọi nơi gọi ItemIcon.draw(canvas, id, rect).
+## Ảnh của vật phẩm nằm ở res://assets/items/<id>.png (id = khoá trong items.json, ví dụ stone.png, wood.png).
+## Ảnh vẽ vừa khung rect, giữ nguyên tỉ lệ, nên mỗi nơi chỉ cần đưa khung to nhỏ khác nhau, không cần ảnh riêng từng cỡ.
+## Khuyên dùng ảnh nền trong suốt, cạnh dài khoảng 96px (đủ nét cho khung tới ~48px, vẫn nhẹ).
+## Ảnh được bọc CanvasTexture với bộ lọc mượt riêng, nên không phụ thuộc texture_filter của node vẽ (không còn kiểu pixel art).
+## Không có ảnh ở đó thì thử ItemDefs.icon_texture(id) (đường dẫn cũ); vẫn không có thì vẽ tạm hình tròn màu kèm chữ cái đầu.
 
 const ItemDefs := preload("res://scripts/inventory/item_defs.gd")
 
+const DIR := "res://assets/items/"
 
-static func draw(ci: CanvasItem, id: String, rect: Rect2) -> void:
-	var tex := ItemDefs.icon_texture(id)
-	if tex != null:
-		var s := minf(rect.size.x / tex.get_width(), rect.size.y / tex.get_height())
-		var sz := Vector2(tex.get_width(), tex.get_height()) * s
-		ci.draw_texture_rect(tex, Rect2(rect.get_center() - sz * 0.5, sz), false)
+static var _cache := {} # id -> CanvasTexture hoặc null (cũng nhớ cả ảnh không có, khỏi dò file mỗi lần vẽ)
+
+
+## Ảnh của vật phẩm, null nếu chưa có file.
+static func texture(id: String) -> Texture2D:
+	if _cache.has(id):
+		return _cache[id]
+	var base: Texture2D = null
+	var path := DIR + id + ".png"
+	if ResourceLoader.exists(path):
+		base = load(path) as Texture2D
+	if base == null:
+		base = ItemDefs.icon_texture(id) # ảnh cũ nếu item_defs.gd đang nạp từ thư mục khác: vẫn hiện, không mất icon
+	var result: Texture2D = null
+	if base != null:
+		var ct := CanvasTexture.new()
+		ct.diffuse_texture = base
+		ct.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS # có bật Mipmaps khi import thì thu nhỏ mịn hơn nữa
+		result = ct
+	_cache[id] = result
+	return result
+
+
+## Vẽ icon vừa khung rect (giữ tỉ lệ ảnh). shadow: bóng đổ mềm phía dưới; bottom: áp sát đáy khung thay vì giữa khung
+## (dùng cho vật nằm trên đất để đáy ảnh chạm bóng).
+static func draw(ci: CanvasItem, id: String, rect: Rect2, shadow := true, bottom := false) -> void:
+	var tex := texture(id)
+	if tex == null:
+		_draw_fallback(ci, id, rect)
 		return
-	var item := ItemDefs.get_item(id)
-	var col: Color = item.get("color", Color(0.7, 0.7, 0.7))
-	match String(item.get("shape", "")):
-		"stone":
-			_stone(ci, rect, col)
-		"log":
-			_log(ci, rect, col)
-		_:
-			_letter(ci, rect, col, str(item.get("name", "?")))
+	var ts := tex.get_size()
+	var k := minf(rect.size.x / ts.x, rect.size.y / ts.y)
+	var sz := ts * k
+	var pos := rect.position + (rect.size - sz) * 0.5
+	if bottom:
+		pos.y = rect.end.y - sz.y
+	if shadow:
+		ci.draw_texture_rect(tex, Rect2(pos + Vector2(0.0, 1.5 + sz.y * 0.05), sz), false, Color(0.0, 0.0, 0.0, 0.32))
+	ci.draw_texture_rect(tex, Rect2(pos, sz), false)
 
 
-static func _poly(c: Vector2, h: Vector2, unit: Array) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for p in unit:
-		out.append(c + (p as Vector2) * h)
-	return out
-
-
-static func _stone(ci: CanvasItem, rect: Rect2, col: Color) -> void:
+static func _draw_fallback(ci: CanvasItem, id: String, rect: Rect2) -> void:
+	var r := minf(rect.size.x, rect.size.y) * 0.42
 	var c := rect.get_center()
-	var h := rect.size * 0.45
-	var body := _poly(c, h, [Vector2(-0.95, 0.25), Vector2(-0.70, -0.45), Vector2(-0.15, -0.85), Vector2(0.50, -0.70),
-		Vector2(0.95, -0.10), Vector2(0.80, 0.55), Vector2(0.10, 0.85), Vector2(-0.60, 0.70)])
-	var shine := _poly(c, h, [Vector2(-0.55, -0.05), Vector2(-0.40, -0.45), Vector2(-0.05, -0.62), Vector2(0.20, -0.45),
-		Vector2(-0.10, -0.25)])
-	var loop := body.duplicate()
-	loop.append(body[0])
-	ci.draw_colored_polygon(body, col)
-	ci.draw_colored_polygon(shine, col.lightened(0.35))
-	ci.draw_polyline(loop, col.darkened(0.55), maxf(2.0, rect.size.x * 0.04), true)
-
-
-static func _log(ci: CanvasItem, rect: Rect2, col: Color) -> void:
-	var c := rect.get_center()
-	var h := rect.size * 0.45
-	var dark := col.darkened(0.55)
-	var body := _poly(c, h, [Vector2(-0.95, -0.40), Vector2(0.60, -0.40), Vector2(0.60, 0.40), Vector2(-0.95, 0.40)])
-	var cap := PackedVector2Array()
-	for i in 20: # mặt cắt gỗ (hình elip) ở đầu bên phải
-		var a := TAU * i / 20.0
-		cap.append(c + Vector2(0.60 + cos(a) * 0.30, sin(a) * 0.40) * h)
-	var cap_loop := cap.duplicate()
-	cap_loop.append(cap[0])
-	var w := maxf(2.0, rect.size.x * 0.04)
-	ci.draw_colored_polygon(body, col)
-	ci.draw_line(c + Vector2(-0.90, -0.12) * h, c + Vector2(0.55, -0.12) * h, dark, w * 0.6, true)
-	ci.draw_line(c + Vector2(-0.80, 0.14) * h, c + Vector2(0.55, 0.14) * h, dark, w * 0.6, true)
-	ci.draw_line(c + Vector2(-0.95, -0.40) * h, c + Vector2(0.60, -0.40) * h, dark, w, true)
-	ci.draw_line(c + Vector2(-0.95, 0.40) * h, c + Vector2(0.60, 0.40) * h, dark, w, true)
-	ci.draw_line(c + Vector2(-0.95, -0.40) * h, c + Vector2(-0.95, 0.40) * h, dark, w, true)
-	ci.draw_colored_polygon(cap, col.lightened(0.40))
-	ci.draw_arc(c + Vector2(0.60, 0.0) * h, h.y * 0.18, 0.0, TAU, 16, dark, w * 0.6, true)
-	ci.draw_polyline(cap_loop, dark, w, true)
-
-
-static func _letter(ci: CanvasItem, rect: Rect2, col: Color, item_name: String) -> void:
-	var u := minf(rect.size.x, rect.size.y)
-	var box := Rect2(rect.get_center() - Vector2(u, u) * 0.42, Vector2(u, u) * 0.84)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = col
-	sb.border_color = col.darkened(0.55)
-	sb.set_border_width_all(maxi(2, roundi(u * 0.04)))
-	sb.set_corner_radius_all(roundi(u * 0.16))
-	ci.draw_style_box(sb, box)
+	ci.draw_circle(c, r, Color.from_hsv(float(absi(hash(id)) % 360) / 360.0, 0.45, 0.85))
+	ci.draw_arc(c, r, 0.0, TAU, 24, Color(0.15, 0.09, 0.06, 0.9), maxf(1.5, r * 0.12), true)
+	var letter := id.capitalize().left(1)
 	var font := ThemeDB.fallback_font
-	var fs := roundi(u * 0.5)
-	var ch := item_name.substr(0, 1).to_upper()
-	var sz := font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-	ci.draw_string(font, rect.get_center() + Vector2(-sz.x * 0.5, fs * 0.35), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.95))
+	var fs := maxi(10, roundi(r * 1.1))
+	var w := font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	ci.draw_string(font, c + Vector2(-w * 0.5, fs * 0.35), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.15, 0.09, 0.06))

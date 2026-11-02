@@ -250,8 +250,24 @@ func draw_grid(overlay: CanvasItem) -> void:
 ## Vẽ viền collider (đỏ) để canh chỉnh offset / radius trong props.json.
 func _draw_colliders(overlay: CanvasItem) -> void:
 	_prop_colliders.draw_debug(overlay, Color(1.0, 0.2, 0.2, 0.9))
+	_draw_sort_points(overlay)
 	_draw_body_colliders(overlay)
 	overlay.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Dấu + xanh lơ = điểm gốc / y-sort của vật KHÔNG có collider (giữa cạnh đáy ảnh nâng lên foot_lift): chỉnh foot_lift trong props.json cho dấu nằm đúng chân vật.
+func _draw_sort_points(overlay: CanvasItem) -> void:
+	var cyan := Color(0.2, 0.9, 1.0, 1.0)
+	overlay.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	for list in _chunk_prop_data.values():
+		for p in list:
+			var def: Dictionary = ObjectDefs.sprites[p[0]]
+			if not (def["collider"] as Dictionary).is_empty():
+				continue
+			var sc: float = ObjectDefs.object_scale * float(p[3])
+			var at := _tile_to_screen(p[1], p[2]) + Vector2(0.0, -float(def["foot_lift"]) * sc)
+			overlay.draw_line(at + Vector2(-6.0, 0.0), at + Vector2(6.0, 0.0), cyan, 2.0)
+			overlay.draw_line(at + Vector2(0.0, -6.0), at + Vector2(0.0, 6.0), cyan, 2.0)
 
 
 ## Collider của người chơi và mob (node thuộc nhóm "collider_debug"), màu xanh.
@@ -657,9 +673,9 @@ func _make_prop(p: Array) -> Sprite2D:
 	var sc: float = ObjectDefs.object_scale * float(p[3])
 	var col: Dictionary = def["collider"]
 	var foot := _tile_to_screen(p[1], p[2]) # giữa cạnh đáy sprite (toạ độ cục bộ của map)
-	# Gốc node = điểm xét y-sort = tâm collider (elip, hình thoi, chữ nhật, hình bình hành); không có collider thì giữa đáy.
+	# Gốc node = điểm xét y-sort = tâm collider (elip, hình thoi, chữ nhật, hình bình hành); không có collider thì giữa đáy nâng lên foot_lift px.
 	# Vật nằm thấp hơn trên màn hình thì vẽ đè lên. Sprite dịch ngược lại để giữa đáy ảnh vẫn nằm đúng tại foot.
-	var anchor: Vector2 = col["offset"] if not col.is_empty() else Vector2.ZERO
+	var anchor: Vector2 = col["offset"] if not col.is_empty() else Vector2(0.0, -float(def["foot_lift"]))
 	var s := Sprite2D.new()
 	s.texture = tex
 	s.centered = false

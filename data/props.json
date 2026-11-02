@@ -1,5 +1,5 @@
 {
- "_doc": "occludes: true = vật che lấp được thực thể khi nằm gần camera hơn (y-sort); false = thực thể (player, mob) luôn đè lên vật. shadow: true = vẽ bóng lấy từ shadow_sheet, rect bóng = rect sprite chính; bóng luôn nằm dưới mọi sprite khác. occludes / shadow đặt ở nhóm làm mặc định, từng sprite có thể ghi đè bằng cùng tên khoá. collider: chắn đường, shape = ellipse | rect | diamond | parallelogram. offset và radius (nửa rộng, nửa cao) tính bằng px của sprite gốc, offset tính từ giữa cạnh đáy của ảnh sprite (chân), y dương = xuống dưới. diamond (hình thoi) có 4 đỉnh ở (±radius.x, 0) và (0, ±radius.y). parallelogram có thêm skew (px, kéo xiên cạnh trên/dưới theo trục X) và rotation (độ, xoay cả hình, dương = theo chiều kim đồng hồ); null = đi xuyên được. y-sort (thứ tự vẽ trước/sau): lấy tâm collider với elip, hình thoi và chữ nhật; hình bình hành lấy điểm trên đường chéo dài, theo vị trí ngang của nhân vật đứng gần; không có collider thì lấy giữa cạnh đáy ảnh. spawn = danh sách rải ngẫu nhiên (tên lặp = hay gặp hơn, [] = chỉ đặt tay). ground: 0 nước 1 cát 2 đất 3 cỏ.",
+ "_doc": "occludes: true = vật che lấp được thực thể khi nằm gần camera hơn (y-sort); false = thực thể (player, mob) luôn đè lên vật. shadow: true = vẽ bóng lấy từ shadow_sheet, rect bóng = rect sprite chính; bóng luôn nằm dưới mọi sprite khác. occludes / shadow đặt ở nhóm làm mặc định, từng sprite có thể ghi đè bằng cùng tên khoá. collider: chắn đường, shape = ellipse | rect | diamond | parallelogram. offset và radius (nửa rộng, nửa cao) tính bằng px của sprite gốc, offset tính từ giữa cạnh đáy của ảnh sprite (chân), y dương = xuống dưới. diamond (hình thoi) có 4 đỉnh ở (±radius.x, 0) và (0, ±radius.y). parallelogram có thêm skew (px, kéo xiên cạnh trên/dưới theo trục X) và rotation (độ, xoay cả hình, dương = theo chiều kim đồng hồ); null = đi xuyên được. y-sort (thứ tự vẽ trước/sau): lấy tâm collider với elip, hình thoi và chữ nhật; hình bình hành lấy điểm trên đường chéo dài, theo vị trí ngang của nhân vật đứng gần; không có collider thì lấy giữa cạnh đáy ảnh nâng lên foot_lift px. foot_lift (chỉ dùng khi collider = null; px của sprite gốc, 0 = đúng giữa cạnh đáy, càng lớn gốc càng cao so với đáy ảnh): gốc này quyết định vật nào vẽ trước / sau (y-sort) và vị trí chạm đất của vật; nhóm đặt mặc định, từng sprite ghi đè bằng cùng tên khoá; bật nút Collider thì điểm này hiện dấu + xanh lơ trên map để canh. spawn = danh sách rải ngẫu nhiên (tên lặp = hay gặp hơn, [] = chỉ đặt tay). ground: 0 nước 1 cát 2 đất 3 cỏ.",
  "sheet": "res://assets/tulam.png",
  "shadow_sheet": "res://assets/tulam_shadow.png",
  "object_scale": 0.8,
@@ -21,9 +21,9 @@
 	"tree_5": {"rect": [508, 20, 161, 195], "collider": {"shape": "ellipse", "offset": [2.9, -32.5], "radius": [24.8, 11.2]}},
 	"tree_2": {"rect": [689, 20, 135, 171], "collider": {"shape": "ellipse", "offset": [0.8, -26.2], "radius": [19.3, 12.4]}},
 	"tree_6": {"rect": [844, 20, 129, 170], "collider": {"shape": "ellipse", "offset": [-0.3, -25.1], "radius": [12.9, 8.6]}},
-	"tree_3": {"rect": [1360, 20, 89, 114], "collider": null},
-	"tree_7": {"rect": [20, 246, 79, 103], "collider": null},
-	"tree_8": {"rect": [119, 246, 75, 93], "collider": null}
+	"tree_3": {"rect": [1360, 20, 89, 120], "collider": null, "foot_lift": 6},
+	"tree_7": {"rect": [20, 246, 79, 112], "collider": null, "foot_lift": 10},
+	"tree_8": {"rect": [119, 246, 75, 105], "collider": null, "foot_lift": 13}
    }
   },
   {
@@ -92,10 +92,10 @@
    "scale": 1.0,
    "spawn": ["rock_small_3", "rock_small_4", "rock_small_1", "rock_small_2"],
    "sprites": {
-	"rock_small_3": {"rect": [221, 480, 78, 55], "collider": null},
-	"rock_small_4": {"rect": [411, 480, 79, 52], "collider": null},
-	"rock_small_1": {"rect": [572, 480, 70, 43], "collider": null},
-	"rock_small_2": {"rect": [662, 480, 56, 39], "collider": null}
+	"rock_small_3": {"rect": [221, 480, 78, 55], "collider": null, "foot_lift": 0},
+	"rock_small_4": {"rect": [411, 480, 79, 52], "collider": null, "foot_lift": 0},
+	"rock_small_1": {"rect": [572, 480, 70, 43], "collider": null, "foot_lift": 0},
+	"rock_small_2": {"rect": [662, 480, 56, 39], "collider": null, "foot_lift": 0}
    }
   },
   {
@@ -109,12 +109,12 @@
    "scale": 1.0,
    "spawn": ["bush_5", "bush_2", "bush_4", "bush_3", "bush_1", "bush_6"],
    "sprites": {
-	"bush_5": {"rect": [993, 20, 175, 138], "collider": null},
-	"bush_2": {"rect": [151, 378, 82, 80], "collider": null},
-	"bush_4": {"rect": [590, 378, 80, 73], "collider": null},
-	"bush_3": {"rect": [942, 378, 74, 69], "collider": null},
-	"bush_1": {"rect": [1241, 378, 78, 66], "collider": null},
-	"bush_6": {"rect": [142, 480, 59, 55], "collider": null}
+	"bush_5": {"rect": [993, 20, 175, 147], "collider": null, "foot_lift": 8},
+	"bush_2": {"rect": [151, 378, 82, 80], "collider": null, "foot_lift": 0},
+	"bush_4": {"rect": [590, 378, 80, 73], "collider": null, "foot_lift": 0},
+	"bush_3": {"rect": [942, 378, 74, 69], "collider": null, "foot_lift": 0},
+	"bush_1": {"rect": [1241, 378, 78, 66], "collider": null, "foot_lift": 0},
+	"bush_6": {"rect": [142, 480, 59, 55], "collider": null, "foot_lift": 0}
    }
   },
   {
@@ -128,12 +128,12 @@
    "scale": 1.0,
    "spawn": ["flower_3", "flower_6", "flower_4", "flower_5", "flower_2", "flower_1"],
    "sprites": {
-	"flower_3": {"rect": [253, 378, 101, 79], "collider": null},
-	"flower_6": {"rect": [374, 378, 83, 78], "collider": null},
-	"flower_4": {"rect": [1036, 378, 80, 67], "collider": null},
-	"flower_5": {"rect": [1339, 378, 60, 65], "collider": null},
-	"flower_2": {"rect": [319, 480, 72, 54], "collider": null},
-	"flower_1": {"rect": [510, 480, 42, 44], "collider": null}
+	"flower_3": {"rect": [253, 378, 101, 79], "collider": null, "foot_lift": 0},
+	"flower_6": {"rect": [374, 378, 83, 78], "collider": null, "foot_lift": 0},
+	"flower_4": {"rect": [1036, 378, 80, 67], "collider": null, "foot_lift": 0},
+	"flower_5": {"rect": [1339, 378, 60, 65], "collider": null, "foot_lift": 0},
+	"flower_2": {"rect": [319, 480, 72, 54], "collider": null, "foot_lift": 0},
+	"flower_1": {"rect": [510, 480, 42, 44], "collider": null, "foot_lift": 0}
    }
   }
  ]

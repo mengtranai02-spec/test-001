@@ -7,7 +7,7 @@ extends Control
 ## Kích thước / vị trí tính theo CHIỀU CAO viewport (tâm nút cách mép phải / mép dưới bao nhiêu phần chiều cao);
 ## tắt auto_layout nếu muốn tự đặt size / position (nút túi).
 ## Hình dạng nút (nền, viền, bo góc) nằm ở draw_frame() / draw_button() để các UI khác (danh sách nhặt, ô túi) vẽ cùng kiểu.
-## Icon: nếu có res://assets/ui/<icon_kind>.png thì dùng ảnh đó, không thì vẽ bằng code: run, pickup, chop, smash, bag.
+## Icon: nếu có res://assets/ui/<icon_kind>.png thì dùng ảnh đó, không thì vẽ bằng code: run, pickup, chop, smash, bag, pilball.
 
 signal tapped
 
@@ -33,6 +33,13 @@ const STONE := Color(0.64, 0.65, 0.70, 0.95)
 @export var from_bottom_h := 0.23
 @export var auto_layout := true
 @export var hide_when_idle := false
+
+## Nút ở trạng thái bật (ví dụ chế độ "Ném Pilball"): vẽ đậm như đang nhấn.
+var active := false:
+	set(value):
+		if value != active:
+			active = value
+			queue_redraw()
 
 var _label := ""
 var _pointer := -1   # -1 rảnh, -2 chuột, >= 0 chỉ số ngón tay đang giữ nút
@@ -141,7 +148,7 @@ func _set_down(on: bool) -> void:
 
 func _draw() -> void:
 	var u := minf(size.x, size.y)
-	draw_button(self, Rect2(Vector2.ZERO, size), _down)
+	draw_button(self, Rect2(Vector2.ZERO, size), _down or active)
 	var k := 0.94 if _down else 1.0
 	draw_set_transform(size * 0.5, 0.0, Vector2(k, k)) # từ đây icon vẽ quanh gốc (0, 0), thu nhỏ nhẹ khi nhấn
 	var tex := ItemDefs.ui_icon(icon_kind)
@@ -150,11 +157,17 @@ func _draw() -> void:
 		draw_texture_rect(tex, Rect2(Vector2(-side, -side) * 0.5, Vector2(side, side)), false)
 	else:
 		match icon_kind:
+			"attack":
+				var tip := Vector2(u * 0.24, -u * 0.25)
+				var grip := Vector2(-u * 0.22, u * 0.23)
+				draw_line(grip, tip, STEEL, u * 0.09, true)
+				draw_line(Vector2(-u * 0.23, u * 0.03), Vector2(-u * 0.03, u * 0.23), TEXT, u * 0.055, true)
 			"run": _icon_run(u * 0.26)
 			"pickup": _icon_pickup(u * 0.30)
 			"chop": _icon_axe(u * 0.30)
 			"smash": _icon_pickaxe(u * 0.30)
 			"bag": _icon_bag(u * 0.30)
+			"pilball": _icon_pilball(u * 0.30)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if _label != "":
 		var font := get_theme_default_font()
@@ -227,3 +240,14 @@ func _icon_bag(k: float) -> void: # ba lô
 	draw_rect(pocket, Color(0.45, 0.28, 0.16, 0.95))
 	draw_rect(pocket, DARK, false, maxf(2.0, k * 0.10))
 	draw_arc(Vector2(0.0, -0.70) * k, k * 0.38, PI, TAU, 16, DARK, maxf(2.0, k * 0.16), true)
+
+
+func _icon_pilball(k: float) -> void: # quả cầu vàng
+	var r := k * 0.95
+	draw_circle(Vector2.ZERO, r, DARK)
+	draw_circle(Vector2.ZERO, r * 0.86, Color(0.93, 0.64, 0.22, 0.98))
+	draw_circle(Vector2(0.0, r * 0.2), r * 0.6, Color(0.80, 0.45, 0.16, 0.9))
+	draw_line(Vector2(-r * 0.86, 0.0), Vector2(r * 0.86, 0.0), DARK, maxf(2.0, k * 0.14))
+	draw_circle(Vector2.ZERO, r * 0.24, Color(1.0, 0.95, 0.8, 0.98))
+	draw_arc(Vector2.ZERO, r * 0.24, 0.0, TAU, 14, DARK, maxf(2.0, k * 0.1), true)
+	draw_circle(Vector2(-r * 0.36, -r * 0.4), r * 0.2, Color(1.0, 0.93, 0.72, 0.9))

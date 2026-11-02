@@ -10,7 +10,8 @@ static var shadow_sheet: Texture2D  # sheet chỉ chứa bóng; rect bóng = rec
 static var object_scale := 1.0
 ## Mỗi nhóm: {id, ground: Array[int], base, forest, spacing, scale, spawn: Array[String]}
 static var groups: Array = []
-## Tên sprite -> {rect: Rect2, group: int (chỉ số trong groups), collider: Dictionary, occludes: bool, shadow: bool}
+## Tên sprite -> {rect: Rect2, group: int (chỉ số trong groups), collider: Dictionary, foot_lift: float, occludes: bool, shadow: bool}
+## foot_lift (px sprite gốc): CHỈ dùng khi collider rỗng. Điểm gốc / y-sort của vật nằm cao hơn giữa cạnh đáy ảnh bấy nhiêu px.
 ## collider rỗng {} = không chắn; ngược lại {shape: 0 elip | 1 chữ nhật | 2 hình bình hành | 3 hình thoi, offset: Vector2, radius: Vector2, points: PackedVector2Array}.
 ## points chỉ có khi shape = 2 hoặc 3: 4 đỉnh (px sprite gốc) tính từ tâm collider (hình bình hành đã áp skew + rotation).
 static var sprites: Dictionary = {}
@@ -57,6 +58,8 @@ static func ensure_loaded() -> void:
 				"rect": Rect2(r[0], r[1], r[2], r[3]),
 				"group": gi,
 				"collider": _parse_collider(s.get("collider")),
+				# Vật không có collider: điểm gốc nâng lên foot_lift px so với giữa cạnh đáy ảnh (sprite không ghi thì lấy mặc định của nhóm).
+				"foot_lift": maxf(0.0, float(s.get("foot_lift", g.get("foot_lift", 0.0)))),
 				# Sprite ghi đè nhóm nếu có khoá riêng.
 				"occludes": bool(s.get("occludes", g.get("occludes", true))),
 				"shadow": bool(s.get("shadow", g.get("shadow", false))) and shadow_sheet != null,

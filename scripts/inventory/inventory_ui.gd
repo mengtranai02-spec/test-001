@@ -4,7 +4,7 @@ extends Control
 ##  - Kéo vật phẩm: thả lên ô khác = chuyển / gộp; thả ra ngoài bảng = vứt ra map (signal item_dropped).
 ##  - Nút "Tách": hiện thanh trượt chọn số lượng rồi tách khỏi chồng sang ô trống đầu tiên.
 ## Gắn vào một CanvasLayer (để không bị ban đêm nhuộm tối). Gọi setup(inventory) một lần.
-## Kích thước tính bằng px: ô 48 chứa icon 32 (ItemDefs.ICON_SIZE).
+## Kích thước tính bằng px: ô 52 chứa ảnh vật phẩm vừa khung 44 (ảnh vẽ bởi item_icon.gd, lấy từ assets/items/<id>.png).
 
 const ItemDefs := preload("res://scripts/inventory/item_defs.gd")
 const ItemIcon := preload("res://scripts/inventory/item_icon.gd")
@@ -15,7 +15,7 @@ signal item_dropped(id: String, amount: int)
 
 const MINIMAP_BOTTOM := 236.0   # minimap chiếm từ y = 16 tới 236 (px) ở góc trên phải
 const BAG_SIZE_H := 0.115       # nút túi / chiều cao viewport
-const SLOT := 48.0              # cạnh một ô
+const SLOT := 52.0              # cạnh một ô
 const GAP := 4                  # khoảng hở giữa các ô
 const BTN_H := 40.0
 const FS_TITLE := 26
@@ -124,7 +124,7 @@ class SlotView extends Control:
 		HudButton.draw_frame(self, Rect2(Vector2.ZERO, size), BG, SELECTED if selected else BORDER, 8.0, 3.0 if selected else 2.0)
 		if slot.is_empty():
 			return
-		var side := ItemDefs.ICON_SIZE
+		var side := minf(size.x, size.y) - 8.0 # ảnh vừa khung, chừa viền 4px mỗi phía
 		ItemIcon.draw(self, str(slot["id"]), Rect2((size - Vector2(side, side)) * 0.5, Vector2(side, side)))
 		var count := int(slot["count"])
 		if count > 1:
@@ -140,7 +140,6 @@ class SlotView extends Control:
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE # đóng bảng thì không chặn chạm ở phần còn lại của màn hình
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST # icon pixel art
 	get_viewport().size_changed.connect(_layout)
 
 
@@ -462,7 +461,7 @@ func _on_drag_ended(index: int, pos: Vector2) -> void:
 func _draw_ghost() -> void:
 	if _ghost_id == "":
 		return
-	var side := ItemDefs.ICON_SIZE
+	var side := (SLOT - 8.0) * 1.2 # đang kéo: to hơn ô một chút cho cảm giác nhấc lên
 	ItemIcon.draw(_ghost, _ghost_id, Rect2(_ghost_pos - Vector2(side, side) * 0.5, Vector2(side, side)))
 
 
