@@ -1,14 +1,10 @@
 extends Node2D
 ## Ném Pilball để bắt Pilmon (mob).
 ##
-## Cách chơi (cảm ứng):
-##  1. Chạm nút "Ném Pilball" để bật chế độ ném: hiện thêm một joystick riêng (bên phải) để ngắm.
-##     Joystick di chuyển bên trái vẫn dùng bình thường, nên vừa chạy vừa ngắm được.
-##  2. Kéo joystick ném về phía NGƯỢC với hướng muốn ném (như kéo súng cao su). Kéo càng xa, ném càng xa.
-##     Vòng ngắm hiện điểm rơi; chuyển đỏ + có mũi tên khi điểm rơi nằm trên một Pilmon.
-##  3. Thả joystick để ném. Kéo chưa đủ xa (MIN_PULL) thì thả ra sẽ huỷ, không ném.
-##  4. Bóng trúng Pilmon: thử bắt theo máu và choáng; thất bại thì mob thoát cầu và phản công.
-## Bàn phím: Q bật/tắt chế độ ném, R ném thẳng về phía đang quay mặt (không có ngắm bằng phím).
+## Cách chơi (cảm ứng): nhấn nút tròn nhỏ, kéo theo hướng NGƯỢC với hướng muốn ném, rồi thả để ném.
+## Kéo càng xa, ném càng xa; vòng ngắm hiển điểm rơi và khóa mục tiêu Pilmon.
+## Bóng trúng Pilmon: thử bắt theo máu và choáng; thất bại thì mob thoát cầu và phản công.
+## Bàn phím: R ném thẳng về phía đang quay mặt.
 ##
 ## Ảnh: res://assets/ui/pilball.png (128x128, icon nút) và pilball_small.png (64x64, quả bóng trong game). Thiếu ảnh thì vẽ tạm bằng code.
 
@@ -17,7 +13,6 @@ signal captured(mob_type: String, world_pos: Vector2)
 const PilFx := preload("res://scripts/pilmon/pil_fx.gd")
 const ItemDefs := preload("res://scripts/inventory/item_defs.gd")
 const HudButton := preload("res://scripts/ui/hud_button.gd")
-const Joystick := preload("res://scripts/world/mobile_joystick.gd")
 
 # --- ngắm / ném ---
 const MIN_PULL := 0.28          # kéo joystick tối thiểu (0..1) mới tính là ném
@@ -77,16 +72,14 @@ var _player: Node2D
 var _mobs: Array
 var _button: HudButton
 var _fx # pil_fx.gd (không khai báo kiểu để truy cập thuộc tính của nó)
-var _aim_joy: Control # joystick ném: chỉ hiện khi bật chế độ ném, nằm ở bên phải
-var _aim_mode := false
-var _joy_was := false
-var _last_joy := Vector2.ZERO
+var _dragging := false
+var _pull := Vector2.ZERO
 var _cooldown := 0.0
 var _shots: Array[Shot] = []
 
 
 ## mobs: mảng mob của world.gd (giữ nguyên tham chiếu, world tự thêm / bớt phần tử).
-func setup(map: Node, player: Node2D, mobs: Array, button: HudButton, hud_layer: CanvasLayer) -> void:
+func setup(map: Node, player: Node2D, mobs: Array, button: HudButton, _hud_layer: CanvasLayer) -> void:
 	_map = map
 	_player = player
 	_mobs = mobs
@@ -98,22 +91,15 @@ func setup(map: Node, player: Node2D, mobs: Array, button: HudButton, hud_layer:
 	_fx.ball_tex = ItemDefs.ui_icon("pilball_small")
 	if _fx.ball_tex == null:
 		_fx.ball_tex = ItemDefs.ui_icon("pilball")
-	_aim_joy = Control.new()
-	_aim_joy.set_script(Joystick)
-	_aim_joy.set("group_name", &"aim_joystick") # khác nhóm joystick di chuyển => player không đọc nhầm
-	_aim_joy.set("accent", Color(1.0, 0.84, 0.4))
-	_aim_joy.set("mirror_hint", true)
-	_aim_joy.set("ring_h", 0.30)
-	_aim_joy.set("from_right_h", 0.26)
-	_aim_joy.set("from_bottom_h", 0.56)
-	hud_layer.add_child(_aim_joy)
-	_aim_joy.call("set_active", false)
-	_button.tapped.connect(toggle_aim_mode)
-	_button.set_prompt("pilball", "Ném Pilball")
+	_button.circular = true
+	_button.drag_mode = true
+	_button.drag_changed.connect(_on_drag_changed)
+	_button.drag_ended.connect(_on_drag_ended)
+	_button.set_prompt("pilball", "")
 
 
 func _register_actions() -> void:
-	for pair in [["pilball", KEY_Q], ["pilball_throw", KEY_R]]:
+	for pair in [["pilball_throw", KEY_R]]:
 		var action := StringName(pair[0])
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
@@ -123,28 +109,8 @@ func _register_actions() -> void:
 			InputMap.action_add_event(action, ev)
 
 
-func toggle_aim_mode() -> void:
-	set_aim_mode(not _aim_mode)
-
-
-func set_aim_mode(on: bool) -> void:
-	if on == _aim_mode:
-		return
-	_aim_mode = on
-	_joy_was = false
-	_fx.aim_on = false
-	_aim_joy.call("set_active", on)
-	if is_instance_valid(_player):
-		_player.set("aiming", on) # đang ngắm: mặt quay theo hướng ném
-	if _button != null:
-		_button.active = on
-		_button.set_prompt("pilball", "Kéo ngược, thả để ném" if on else "Ném Pilball")
-
-
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"pilball"):
-		toggle_aim_mode()
-	elif _aim_mode and event.is_action_pressed(&"pilball_throw"):
+	if event.is_action_pressed(&"pilball_throw") and is_instance_valid(_player):
 		var face: Vector2 = _player.get("facing_direction")
 		_try_throw(-face.normalized() * 0.75) # phím R: ném thẳng về phía đang quay mặt, lực vừa
 
@@ -152,24 +118,17 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if is_instance_valid(_player) and _player.get("dead"):
-		set_aim_mode(false)
-	if _aim_mode and is_instance_valid(_player):
-		_update_aim()
+		_cancel_aim()
+	if _dragging and is_instance_valid(_player):
+		_update_aim(_pull)
 	if not _shots.is_empty():
 		_update_shots(delta)
 
 
 # ---------------------------------------------------------------- ngắm
 
-func _update_aim() -> void:
-	var pull: Vector2 = _aim_joy.call("get_direction")
-	var joy_active := pull != Vector2.ZERO
-	if joy_active:
-		_last_joy = pull
-	elif _joy_was:
-		_try_throw(_last_joy) # thả joystick = ném
-	_joy_was = joy_active
-	if not joy_active:
+func _update_aim(pull: Vector2) -> void:
+	if pull == Vector2.ZERO:
 		_fx.aim_on = false
 		return
 	var pull_len := pull.length()
@@ -188,6 +147,27 @@ func _update_aim() -> void:
 		_fx.aim_lock_pos = target.global_position
 		_fx.aim_chance = float(target.call("capture_chance"))
 	_player.call("face_toward", dir)
+
+
+func _on_drag_changed(direction: Vector2) -> void:
+	_dragging = true
+	_pull = direction
+	if is_instance_valid(_player):
+		_player.set("aiming", true)
+
+
+func _on_drag_ended(direction: Vector2) -> void:
+	if direction.length() > 0.0:
+		_try_throw(direction)
+	_cancel_aim()
+
+
+func _cancel_aim() -> void:
+	_dragging = false
+	_pull = Vector2.ZERO
+	_fx.aim_on = false
+	if is_instance_valid(_player):
+		_player.set("aiming", false)
 
 
 func _origin(dir: Vector2) -> Vector2:
@@ -426,7 +406,7 @@ func _begin_escape(s: Shot) -> void:
 
 
 func reset_throws() -> void:
-	set_aim_mode(false)
+	_cancel_aim()
 	for s in _shots:
 		if is_instance_valid(s.mob) and bool(s.mob.get("captured")):
 			s.mob.call("release_from_ball", _player)

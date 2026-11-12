@@ -34,3 +34,42 @@ rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+
+[shader_globals]
+
+day_tint={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_light0={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_light1={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_light2={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_light3={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_color0={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_color1={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_color2={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}
+fx_color3={
+"type": "color",
+"value": Color(0, 0, 0, 1)
+}

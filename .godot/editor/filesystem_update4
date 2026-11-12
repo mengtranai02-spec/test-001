@@ -1,0 +1,8 @@
+res://scenes/characters/player.tscn
+res://shaders/sway.gdshader
+res://shaders/magic_circle.gdshader
+res://shaders/terrain.gdshader
+res://scripts/world/building_system.gd
+res://scripts/world/map.gd
+res://scripts/world/terrain_3d_renderer.gd
+res://shaders/terrain_3d.gdshader

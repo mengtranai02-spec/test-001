@@ -1,0 +1,8 @@
+{
+  "id": "campfire",
+  "name": "Đống lửa",
+  "texture": "res://assets/campfire.png",
+  "grid_size": [1, 1],
+  "trigger_size": [0.8, 0.8],
+  "collider_enabled": false
+}

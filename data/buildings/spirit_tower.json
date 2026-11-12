@@ -1,0 +1,8 @@
+{
+  "id": "spirit_tower",
+  "name": "Tháp linh thạch",
+  "texture": "res://assets/spirit_stone_pillar.png",
+  "grid_size": [2, 2],
+  "trigger_size": [1.8, 1.8],
+  "collider_enabled": true
+}

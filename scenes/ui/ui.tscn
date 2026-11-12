@@ -1,0 +1,199 @@
+[gd_scene format=3 uid="uid://bipkdqjolcoa7"]
+
+[ext_resource type="Script" uid="uid://c180vrcblxdln" path="res://scripts/ui/ui_manager.gd" id="1_manager"]
+[ext_resource type="Script" uid="uid://bsk2f3vtig3yt" path="res://scripts/world/mobile_joystick.gd" id="2_joystick"]
+[ext_resource type="Script" uid="uid://b2ho0r75ck24o" path="res://scripts/ui/hud_button.gd" id="3_hud_button"]
+[ext_resource type="Script" uid="uid://cr02452vgk7v3" path="res://scripts/world/minimap.gd" id="4_minimap"]
+[ext_resource type="Script" uid="uid://bgxutnpn14yyq" path="res://scripts/inventory/inventory_ui.gd" id="5_inventory"]
+
+[node name="UI" type="CanvasLayer" unique_id=1906586865]
+layer = 10
+script = ExtResource("1_manager")
+
+[node name="Controls" type="Control" parent="." unique_id=1544340164]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SeedPanel" type="PanelContainer" parent="Controls" unique_id=1798257090]
+layout_mode = 0
+offset_left = 14.0
+offset_top = 14.0
+mouse_filter = 1
+
+[node name="SeedRow" type="HBoxContainer" parent="Controls/SeedPanel" unique_id=1721892527]
+layout_mode = 2
+
+[node name="CoordinateLabel" type="Label" parent="Controls/SeedPanel/SeedRow" unique_id=979464508]
+layout_mode = 2
+text = "X: 0   Y: 0"
+
+[node name="SeedLabel" type="Label" parent="Controls/SeedPanel/SeedRow" unique_id=993650978]
+layout_mode = 2
+text = "Seed"
+
+[node name="SeedInput" type="LineEdit" parent="Controls/SeedPanel/SeedRow" unique_id=1554168452]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+placeholder_text = "Enter seed"
+
+[node name="GenerateWorldButton" type="Button" parent="Controls/SeedPanel/SeedRow" unique_id=971971874]
+layout_mode = 2
+text = "Generate world"
+
+[node name="MobileJoystick" type="Control" parent="Controls" unique_id=1099738726]
+anchors_preset = 0
+script = ExtResource("2_joystick")
+
+[node name="RunButton" type="Control" parent="Controls" unique_id=131559483]
+anchors_preset = 0
+script = ExtResource("3_hud_button")
+action = &"run"
+size_h = 0.135
+from_right_h = 0.4
+from_bottom_h = 0.15
+
+[node name="BuildButton" type="Control" parent="Controls" unique_id=1330415078]
+anchors_preset = 0
+script = ExtResource("3_hud_button")
+action = &"build"
+icon_kind = "build"
+size_h = 0.12
+from_right_h = 0.4
+from_bottom_h = 0.91
+
+[node name="BuildMenu" type="PanelContainer" parent="Controls" unique_id=684450428]
+visible = false
+z_index = 20
+layout_mode = 0
+offset_left = 20.0
+offset_top = 130.0
+mouse_filter = 1
+
+[node name="Minimap" type="Control" parent="Controls" unique_id=1338365966]
+custom_minimum_size = Vector2(220, 220)
+anchors_preset = 0
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -236.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 236.0
+script = ExtResource("4_minimap")
+
+[node name="DebugPanel" type="VBoxContainer" parent="Controls" unique_id=1708431303]
+layout_mode = 0
+offset_left = 14.0
+offset_top = 72.0
+
+[node name="DayTimeLabel" type="Label" parent="Controls/DebugPanel" unique_id=1814970979]
+layout_mode = 2
+
+[node name="TimeSlider" type="HSlider" parent="Controls/DebugPanel" unique_id=2137201449]
+custom_minimum_size = Vector2(200, 24)
+layout_mode = 2
+max_value = 1.0
+step = 0.001
+
+[node name="DayAutoButton" type="Button" parent="Controls/DebugPanel" unique_id=1111258401]
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Day and night: AUTO"
+
+[node name="IsoGridButton" type="Button" parent="Controls/DebugPanel" unique_id=966093085]
+layout_mode = 2
+toggle_mode = true
+text = "Iso grid: OFF"
+
+[node name="ChunkGridButton" type="Button" parent="Controls/DebugPanel" unique_id=750398530]
+layout_mode = 2
+toggle_mode = true
+text = "Chunk grid: OFF"
+
+[node name="ColliderButton" type="Button" parent="Controls/DebugPanel" unique_id=393369152]
+layout_mode = 2
+toggle_mode = true
+text = "Collider: OFF"
+
+[node name="HealthLabel" type="Label" parent="Controls/DebugPanel" unique_id=4119956]
+layout_mode = 2
+text = "HP"
+
+[node name="InventoryUI" type="Control" parent="Controls" unique_id=224476211]
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("5_inventory")
+
+[node name="ModalOverlay" type="Control" parent="." unique_id=439588837]
+visible = false
+z_index = 1000
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dim" type="ColorRect" parent="ModalOverlay"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 0.68)
+
+[node name="InventoryPanel" type="PanelContainer" parent="ModalOverlay" unique_id=378736940]
+visible = false
+z_index = 1
+custom_minimum_size = Vector2(420, 500)
+layout_mode = 0
+offset_left = 420.0
+offset_top = 100.0
+
+[node name="PickupButton" type="Control" parent="Controls" unique_id=1506430272]
+visible = false
+anchors_preset = 0
+script = ExtResource("3_hud_button")
+action = &"pickup"
+icon_kind = "pickup"
+size_h = 0.12
+from_right_h = 0.15
+from_bottom_h = 0.67
+layout_offset_px = Vector2(-200, 100)
+hide_when_idle = true
+
+[node name="PilballButton" type="Control" parent="Controls" unique_id=1647702723]
+anchors_preset = 0
+script = ExtResource("3_hud_button")
+icon_kind = "pilball"
+size_h = 0.135
+from_right_h = 0.33
+from_bottom_h = 0.33
+
+[node name="AttackButton" type="Control" parent="Controls" unique_id=2029092167]
+anchors_preset = 0
+script = ExtResource("3_hud_button")
+action = &"attack"
+icon_kind = "attack"
+size_h = 0.19
+from_right_h = 0.15
+from_bottom_h = 0.15
+
+[node name="InventoryButton" type="Control" parent="Controls" unique_id=966153504]
+anchors_preset = 0
+script = ExtResource("3_hud_button")
+icon_kind = "bag"
+size_h = 0.115
+from_right_h = 0.15
+from_bottom_h = 0.4
+

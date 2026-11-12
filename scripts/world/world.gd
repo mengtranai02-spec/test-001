@@ -9,11 +9,10 @@ const MOB_TYPES := ["mod1", "mod2"]
 const HudButton := preload("res://scripts/ui/hud_button.gd")
 const NightGlow := preload("res://scripts/world/night_glow.gd")
 const Inventory := preload("res://scripts/inventory/inventory.gd")
-const InventoryUI := preload("res://scripts/inventory/inventory_ui.gd")
 const GatherSystem := preload("res://scripts/gather/gather_system.gd")
 const LootSystem := preload("res://scripts/gather/loot_system.gd")
-const LootPanel := preload("res://scripts/gather/loot_panel.gd")
 const PilThrower := preload("res://scripts/pilmon/pil_thrower.gd")
+const ChestUI := preload("res://scripts/inventory/chest_ui.gd")
 
 # --- sinh mob lần đầu khi chunk được dựng (kể cả vùng ban đầu) ---
 const SPAWN_CHANCE := 0.6                     # xác suất mỗi chunk mới có mob
@@ -58,14 +57,21 @@ var _time_label: Label
 var _player: Node2D
 var _inventory                     # Inventory (inventory.gd)
 var _inventory_ui: Control         # inventory_ui.gd
+var _chest_ui                      # chest_ui.gd: bảng rương, chuyển đồ giữa túi và rương
 var _gather                        # gather_system.gd
-var _interact_button: HudButton    # nút tương tác theo ngữ cảnh (Chặt / Đập / Nhặt)
 var _loot                          # loot_system.gd
-var _loot_panel: Control           # loot_panel.gd
+var _attack_button: HudButton
+var _pickup_button: HudButton
+var _building_system
+var _build_toggle_was_down := false
+var _ground_loot_nearby := false
+var _gather_pickup_nearby := false
 var _pil_thrower                   # pil_thrower.gd: ném Pilball bắt mob
 var _seed_input: LineEdit
 var _coordinate_label: Label
 var _minimap: Control
+var _big_map_open := false
+var _ui
 var _last_coord := Vector2i(1 << 30, 1 << 30)
 
 var _rng := RandomNumberGenerator.new()
@@ -92,6 +98,7 @@ func _ready() -> void:
 	_player.set("terrain_map", _map)
 	add_child(_player)
 	_map.target = _player
+	_ui = $UI
 	_create_seed_ui()
 	_create_mobile_joystick()
 	_create_gameplay_ui()
@@ -101,6 +108,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	var build_down := Input.is_action_pressed("build")
+	if build_down and not _build_toggle_was_down and _building_system != null and not _ui.gameplay_input_blocked():
+		_building_system.toggle_menu()
+	_build_toggle_was_down = build_down
 	_update_coordinate_label()
 	_update_day_night(delta)
 
@@ -243,31 +254,22 @@ func _clear_mobs() -> void:
 # ---------------------------------------------------------------- UI
 
 func _create_mobile_joystick() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 1
-	add_child(layer)
-	var joystick := Control.new()
-	joystick.set_script(preload("res://scripts/world/mobile_joystick.gd"))
-	layer.add_child(joystick)
+	var controls: Control = _ui.controls
+	var joystick := controls.get_node("MobileJoystick") as Control
+	_register_gameplay_hud(joystick)
 	# Hiện chỉ có nút chạy; phun lửa và vòng ma pháp tạm bỏ, sẽ quay lại khi có hệ thống kỹ năng.
-	_add_hud_button(layer, &"run", "run", 0.160, 0.462, 0.237)
+	_register_gameplay_hud(controls.get_node("RunButton") as CanvasItem)
+	_register_gameplay_hud(controls.get_node("BuildButton") as CanvasItem)
+	_building_system = Node2D.new()
+	_building_system.set_script(preload("res://scripts/world/building_system.gd"))
+	add_child(_building_system)
+	_building_system.setup(_map, controls)
 
 
 ## Nút trên màn hình: kích thước và vị trí tính theo chiều cao màn hình (xem hud_button.gd).
-func _add_hud_button(layer: CanvasLayer, action: StringName, icon: String, size_h: float, from_right_h: float, from_bottom_h: float) -> HudButton:
-	var button := HudButton.new()
-	button.action = action
-	button.icon_kind = icon
-	button.size_h = size_h
-	button.from_right_h = from_right_h
-	button.from_bottom_h = from_bottom_h
-	layer.add_child(button)
-	return button
-
-
 ## Phím tắt của giao diện, đăng ký một lần ở đây (phím di chuyển do player.gd tự đăng ký).
 func _register_actions() -> void:
-	for pair in [["interact", KEY_E], ["pickup", KEY_F], ["inventory", KEY_I]]:
+	for pair in [["interact", KEY_Q], ["pickup", KEY_F], ["inventory", KEY_I], ["build", KEY_B]]:
 		var action := StringName(pair[0])
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
@@ -281,54 +283,82 @@ func _register_actions() -> void:
 ## hệ thống thu thập, vật phẩm rơi trên đất + danh sách nhặt.
 func _create_inventory_and_gather() -> void:
 	_inventory = Inventory.new()
-	var layer := CanvasLayer.new() # CanvasLayer riêng nên không bị CanvasModulate ban đêm nhuộm tối
-	layer.layer = 5
-	add_child(layer)
-	_loot_panel = Control.new() # thêm TRƯỚC bảng túi đồ: mở túi thì lớp mờ của bảng che và chặn luôn danh sách này
-	_loot_panel.set_script(LootPanel)
-	layer.add_child(_loot_panel)
-	_inventory_ui = Control.new()
-	_inventory_ui.set_script(InventoryUI)
-	layer.add_child(_inventory_ui)
+	var controls: Control = _ui.controls
+	_inventory_ui = controls.get_node("InventoryUI")
 	_inventory_ui.setup(_inventory)
-
-	_interact_button = _add_hud_button(layer, &"interact", "", 0.16, 0.462, 0.50)
-	_interact_button.hide_when_idle = true
-	_interact_button.visible = false
+	_ui.set_inventory_ui(_inventory_ui)
+	_chest_ui = ChestUI.new()
+	add_child(_chest_ui)
+	_chest_ui.setup(_inventory, _inventory_ui)
+	_building_system.setup_storage(_chest_ui, _ui) # _building_system đã được dựng ở _create_mobile_joystick
+	if is_instance_valid(_minimap):
+		_minimap.big_map_visibility_changed.connect(_on_big_map_visibility_changed)
 
 	_gather = GatherSystem.new()
 	add_child(_gather)
 	_gather.setup(_map, _player, _inventory, _inventory_ui)
-	_gather.prompt_changed.connect(_interact_button.set_prompt)
+	_gather.prompt_changed.connect(_on_gather_prompt_changed)
 
 	_loot = LootSystem.new()
 	add_child(_loot)
 	_loot.setup(_map, _player, _inventory, _inventory_ui)
-	_loot_panel.setup(_loot, _inventory_ui.bag_button())
+	_loot.set_gather_system(_gather)
+	_pickup_button = controls.get_node("PickupButton") as HudButton
+	_register_gameplay_hud(_pickup_button)
+	_pickup_button.visible = false
+	_loot.nearby_changed.connect(_on_pickup_nearby_changed)
 	_gather.drops_spawned.connect(Callable(_loot, "spawn_drops")) # chặt cây / đập đá xong => vật phẩm rơi ra đất
 	_inventory_ui.item_dropped.connect(Callable(_loot, "drop_at_player")) # kéo vật phẩm ra ngoài bảng túi => vứt ra đất
 
 
-## Nút "Ném Pilball" + hệ thống ném bắt mob (xem pil_thrower.gd): bật chế độ ném thì hiện joystick ném riêng (bên phải), kéo ngược hướng muốn ném, thả để ném.
+func _on_pickup_nearby_changed(entries: Array) -> void:
+	_ground_loot_nearby = not entries.is_empty()
+	_refresh_pickup_button()
+
+
+func _on_gather_prompt_changed(icon: String, _label: String) -> void:
+	_gather_pickup_nearby = icon == "pickup"
+	_refresh_pickup_button()
+
+
+func _refresh_pickup_button() -> void:
+	if is_instance_valid(_pickup_button):
+		_pickup_button.visible = not _big_map_open and (_ground_loot_nearby or _gather_pickup_nearby)
+
+
+func _on_big_map_visibility_changed(open: bool) -> void:
+	_big_map_open = open
+	_ui.set_map_open(open)
+	if is_instance_valid(_building_system) and open:
+		_building_system.close_menu()
+	_build_toggle_was_down = Input.is_action_pressed("build")
+	_refresh_pickup_button()
+	if is_instance_valid(_inventory_ui):
+		_inventory_ui.set_bag_button_visible(not open)
+
+
+func _register_gameplay_hud(control: CanvasItem) -> void:
+	_ui.register_gameplay_control(control)
+
+
+## Nút ném Pilball kiêm joystick: kéo trực tiếp từ nút tròn để ngắm rồi thả để ném.
 func _create_pilball() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 1
-	add_child(layer)
-	var button := _add_hud_button(layer, &"", "pilball", 0.207, 0.230, 0.234)
+	var button: HudButton = _ui.controls.get_node("PilballButton") as HudButton
+	_register_gameplay_hud(button)
 	_pil_thrower = PilThrower.new()
 	add_child(_pil_thrower)
-	_pil_thrower.setup(_map, _player, _mobs, button, layer)
-	var attack_button := _add_hud_button(layer, &"attack", "attack", 0.16, 0.462, 0.76)
-	attack_button.set_prompt("attack", "Tấn công")
+	_pil_thrower.setup(_map, _player, _mobs, button, _ui)
+	_attack_button = _ui.controls.get_node("AttackButton") as HudButton
+	_register_gameplay_hud(_attack_button)
+	_attack_button.set_prompt("attack", "")
 
 
 func _create_player_health_ui(panel: Control) -> void:
-	var health_label := Label.new()
+	var health_label := panel.get_node("HealthLabel") as Label
 	health_label.add_theme_font_size_override("font_size", 22)
 	health_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	health_label.add_theme_constant_override("outline_size", 5)
 	health_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(health_label)
 	var update_health := func(current: float, maximum: float) -> void:
 		health_label.text = "Máu: %d / %d%s" % [int(current), int(maximum), " — Hồi sinh sau 2 giây" if current <= 0.0 else ""]
 	_player.connect("health_changed", update_health)
@@ -386,88 +416,50 @@ func _apply_day_tint() -> void:
 
 
 func _create_seed_ui() -> void:
-	var layer := CanvasLayer.new()
-	add_child(layer)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(14, 14)
-	layer.add_child(panel)
-	var row := HBoxContainer.new()
-	panel.add_child(row)
-	_coordinate_label = Label.new()
-	_coordinate_label.text = "X: 0   Y: 0"
-	row.add_child(_coordinate_label)
-	var label := Label.new()
-	label.text = "Seed"
-	row.add_child(label)
-	_seed_input = LineEdit.new()
+	var panel := _ui.controls.get_node("SeedPanel") as PanelContainer
+	_register_gameplay_hud(panel)
+	_coordinate_label = panel.get_node("SeedRow/CoordinateLabel")
+	_seed_input = panel.get_node("SeedRow/SeedInput")
 	_seed_input.text = str(world_seed)
-	_seed_input.custom_minimum_size = Vector2(150, 0)
-	_seed_input.placeholder_text = "Enter seed"
 	_seed_input.text_submitted.connect(_on_seed_submitted)
-	row.add_child(_seed_input)
-	var button := Button.new()
-	button.text = "Generate world"
+	var button := panel.get_node("SeedRow/GenerateWorldButton") as Button
 	button.pressed.connect(_apply_seed_from_ui)
-	row.add_child(button)
 
 func _create_gameplay_ui() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 2
-	add_child(layer)
-	_minimap = Control.new()
-	_minimap.set_script(preload("res://scripts/world/minimap.gd"))
+	var controls: Control = _ui.controls
+	_minimap = controls.get_node("Minimap")
 	_minimap.player = _player
 	_minimap.terrain_map = _map
-	layer.add_child(_minimap)
-	var panel := VBoxContainer.new()
-	panel.position = Vector2(14, 72)
-	layer.add_child(panel)
+	var panel := controls.get_node("DebugPanel") as VBoxContainer
+	_register_gameplay_hud(panel)
 	_create_day_controls(panel)
-	var iso := Button.new()
-	iso.text = "Iso grid: OFF"
-	iso.toggle_mode = true
+	var iso := controls.get_node("DebugPanel/IsoGridButton") as Button
 	iso.toggled.connect(func(on: bool):
 		_map.show_iso_grid = on
 		iso.text = "Iso grid: ON" if on else "Iso grid: OFF")
-	panel.add_child(iso)
-	var chunks := Button.new()
-	chunks.text = "Chunk grid: OFF"
-	chunks.toggle_mode = true
+	var chunks := controls.get_node("DebugPanel/ChunkGridButton") as Button
 	chunks.toggled.connect(func(on: bool):
 		_map.show_chunk_grid = on
 		chunks.text = "Chunk grid: ON" if on else "Chunk grid: OFF")
-	panel.add_child(chunks)
-	var colliders := Button.new()
-	colliders.text = "Collider: OFF"
-	colliders.toggle_mode = true
+	var colliders := controls.get_node("DebugPanel/ColliderButton") as Button
 	colliders.toggled.connect(func(on: bool):
 		_map.show_colliders = on
 		colliders.text = "Collider: ON" if on else "Collider: OFF")
-	panel.add_child(colliders)
 	_create_player_health_ui(panel)
 
 
 ## Điều khiển ngày đêm: thanh trượt chọn giờ + nút bật / tắt tự trôi.
 func _create_day_controls(panel: VBoxContainer) -> void:
-	_time_label = Label.new()
-	panel.add_child(_time_label)
-	_time_slider = HSlider.new()
-	_time_slider.min_value = 0.0
-	_time_slider.max_value = 1.0
-	_time_slider.step = 0.001
-	_time_slider.custom_minimum_size = Vector2(200, 24)
+	_time_label = panel.get_node("DayTimeLabel")
+	_time_slider = panel.get_node("TimeSlider")
 	_time_slider.focus_mode = Control.FOCUS_NONE # không cướp phím mũi tên của người chơi
 	_time_slider.value_changed.connect(set_time_of_day) # kéo thanh trượt = chọn giờ
-	panel.add_child(_time_slider)
-	var auto := Button.new()
-	auto.text = "Ngày đêm: TỰ TRÔI"
-	auto.toggle_mode = true
+	var auto := panel.get_node("DayAutoButton") as Button
 	auto.button_pressed = _day_auto
 	auto.focus_mode = Control.FOCUS_NONE
 	auto.toggled.connect(func(on: bool):
 		_day_auto = on
 		auto.text = "Ngày đêm: TỰ TRÔI" if on else "Ngày đêm: DỪNG")
-	panel.add_child(auto)
 	_refresh_time_ui()
 
 

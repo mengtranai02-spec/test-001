@@ -107,6 +107,7 @@ var show_colliders := false          # vẽ collider vật thể để chỉnh d
 var object_root: Node2D
 var _forest_noise := FastNoiseLite.new()
 var _prop_colliders := PropColliders.new(TILE_W, TILE_H) # collider vật thể tĩnh (xem prop_colliders.gd)
+var _building_colliders: Dictionary = {} # id -> PackedVector2Array, trong local space của map
 var _chunk_props: Dictionary = {}    # Vector2i (chunk) -> Array[Node2D] sprite đã tạo
 var _chunk_pending: Dictionary = {}  # Vector2i (chunk) -> Array vật thể chờ tạo sprite
 var _prop_textures: Dictionary = {}  # tên -> AtlasTexture dùng chung
@@ -238,13 +239,17 @@ func draw_grid(overlay: CanvasItem) -> void:
 		if show_iso_grid or (show_chunk_grid and strong):
 			var a := to_global(_tile_to_screen(x, lo.y - 2))
 			var b := to_global(_tile_to_screen(x, hi.y + 2))
-			overlay.draw_line(to_local(a), to_local(b), Color(1, 1, 1, 0.25 if strong else 0.10), 1.0)
+			var alpha := 0.52 if show_chunk_grid and strong else (0.40 if strong else 0.22)
+			var width := 2.25 if show_chunk_grid and strong else (1.6 if strong else 1.25)
+			overlay.draw_line(to_local(a), to_local(b), Color(1, 1, 1, alpha), width, true)
 	for y in range(first_y, ceili(hi.y) + step, step):
 		var strong := y % CHUNK_SIZE == 0
 		if show_iso_grid or (show_chunk_grid and strong):
 			var a := to_global(_tile_to_screen(lo.x - 2, y))
 			var b := to_global(_tile_to_screen(hi.x + 2, y))
-			overlay.draw_line(to_local(a), to_local(b), Color(1, 1, 1, 0.25 if strong else 0.10), 1.0)
+			var alpha := 0.52 if show_chunk_grid and strong else (0.40 if strong else 0.22)
+			var width := 2.25 if show_chunk_grid and strong else (1.6 if strong else 1.25)
+			overlay.draw_line(to_local(a), to_local(b), Color(1, 1, 1, alpha), width, true)
 
 
 ## Vẽ viền collider (đỏ) để canh chỉnh offset / radius trong props.json.
@@ -554,7 +559,20 @@ func is_land_at(world_pos: Vector2) -> bool:
 
 ## Vị trí này có nằm trong collider của vật thể (cây, đá...) không.
 func is_blocked_at(world_pos: Vector2) -> bool:
-	return _prop_colliders.is_blocked_at(to_local(world_pos))
+	var local_pos := to_local(world_pos)
+	if _prop_colliders.is_blocked_at(local_pos):
+		return true
+	for polygon: PackedVector2Array in _building_colliders.values():
+		if Geometry2D.is_point_in_polygon(local_pos, polygon):
+			return true
+	return false
+
+
+func register_building_collider(id: int, world_polygon: PackedVector2Array) -> void:
+	var local_polygon := PackedVector2Array()
+	for point in world_polygon:
+		local_polygon.append(to_local(point))
+	_building_colliders[id] = local_polygon
 
 
 ## Chân nhân vật là đoạn thẳng nằm ngang tại world_pos, nửa dài half_width (px): có cắt / nằm trong
@@ -562,9 +580,16 @@ func is_blocked_at(world_pos: Vector2) -> bool:
 func is_segment_blocked_at(world_pos: Vector2, half_width: float) -> bool:
 	if half_width <= 0.0:
 		return is_blocked_at(world_pos)
+	var a := to_local(world_pos + Vector2(-half_width, 0.0))
+	var b := to_local(world_pos + Vector2(half_width, 0.0))
+	for polygon: PackedVector2Array in _building_colliders.values():
+		if Geometry2D.is_point_in_polygon(a, polygon) or Geometry2D.is_point_in_polygon(b, polygon):
+			return true
+		for i in polygon.size():
+			if Geometry2D.segment_intersects_segment(a, b, polygon[i], polygon[(i + 1) % polygon.size()]) != null:
+				return true
 	return _prop_colliders.is_segment_blocked(
-		to_local(world_pos + Vector2(-half_width, 0.0)),
-		to_local(world_pos + Vector2(half_width, 0.0)))
+		a, b)
 
 
 ## Đi từ from_pos tới to_pos có được không: điểm chân phải là đất và đoạn chân (nửa dài half_width)

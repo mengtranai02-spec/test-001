@@ -1,4 +1,5 @@
 extends Control
+signal big_map_visibility_changed(open: bool)
 
 ## Minimap tròn, vẽ theo đúng phép chiếu iso của màn hình chính: người chơi đi sang phải
 ## trên màn hình thì bản đồ trên minimap cũng trượt sang trái (không còn bị xoay chéo 45 độ).
@@ -101,12 +102,6 @@ func clear_exploration() -> void:
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(220, 220)
-	set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	offset_right = -16
-	offset_left = -236
-	offset_top = 16
-	offset_bottom = 236
 	mouse_filter = Control.MOUSE_FILTER_STOP                  # bấm vào minimap để mở bản đồ lớn
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST        # giữ pixel vuông, không bị nhoè
 	clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW         # nội dung bị cắt theo hình tròn nền
@@ -188,6 +183,7 @@ func _set_big_open(open: bool) -> void:
 	if not is_instance_valid(_big) or _big.visible == open:
 		return
 	_big.visible = open
+	big_map_visibility_changed.emit(open)
 	if open:
 		if is_instance_valid(player):
 			_big_center = player.global_position

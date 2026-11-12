@@ -5,6 +5,11 @@ extends RefCounted
 
 const DATA_PATH := "res://data/items.json"
 const UI_ICON_DIR := "res://assets/ui/"
+const HUD_ICON_PATHS := {
+	"attack": "res://assets/fist.png",
+	"pickup": "res://assets/pickup.png",
+	"run": "res://assets/speedboost.png",
+}
 
 const ICON_SIZE := 32.0   # kích thước vật phẩm (px) ở mọi nơi: trên đất, trong túi, trong danh sách nhặt
 const SLOTS := 40         # số ô túi đồ
@@ -62,7 +67,8 @@ static func icon_texture(id: String) -> Texture2D:
 
 ## Icon giao diện tuỳ chọn (bag, pickup, chop, smash); trả về null nếu chưa có file.
 static func ui_icon(icon_name: String) -> Texture2D:
-	return _load_texture(UI_ICON_DIR + icon_name + ".png")
+	var path := str(HUD_ICON_PATHS.get(icon_name, UI_ICON_DIR + icon_name + ".png"))
+	return _load_texture(path)
 
 
 static func _load_texture(path: String) -> Texture2D:

@@ -1,9 +1,11 @@
+Camera3D
 AnimatedSprite2D
-Polygon2D
 Sprite2D
+AnimationPlayer
+AnimationTree
+Polygon2D
 Node2D
 Bone2D
-AnimationPlayer
 Skeleton2D
 CharacterBody2D
 TileMapLayer

@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://b0q5q8t237dcr"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_cfjqp"]
+animations = [{
+"frames": [],
+"loop": 1,
+"name": &"default",
+"speed": 20.0
+}]
+
+[node name="Node2D" type="Node2D" unique_id=361118410]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=466978164]
+sprite_frames = SubResource("SpriteFrames_cfjqp")
+frame_progress = 0.7840007

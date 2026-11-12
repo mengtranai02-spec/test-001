@@ -94,10 +94,31 @@ func _physics_process(delta: float) -> void:
 		return # đang gõ seed
 	if is_instance_valid(hud) and hud.is_open():
 		return
+	var ui_manager := get_tree().get_first_node_in_group("ui_manager")
+	if ui_manager != null and bool(ui_manager.call("gameplay_input_blocked")):
+		return
 	var rule: Dictionary = _target["rule"]
-	var wants := Input.is_action_pressed("interact") if rule["repeat"] else Input.is_action_just_pressed("interact")
+	var primary_action := "pickup" if str(rule["icon"]) == "pickup" else "attack"
+	var wants := false
+	if primary_action == "pickup":
+		# Phím E vẫn nhặt trực tiếp; nút F được LootSystem phân xử với item rơi theo khoảng cách.
+		wants = Input.is_action_just_pressed("interact")
+	else:
+		wants = (Input.is_action_pressed("interact") or Input.is_action_pressed(primary_action)) if rule["repeat"] else (Input.is_action_just_pressed("interact") or Input.is_action_just_pressed(primary_action))
 	if wants:
 		_strike(_target)
+
+
+func get_pickup_target() -> Dictionary:
+	if _target.is_empty() or str(_target["rule"].get("icon", "")) != "pickup":
+		return {}
+	return _target
+
+
+func pickup_target() -> void:
+	var target := get_pickup_target()
+	if not target.is_empty() and _cooldown <= 0.0:
+		_strike(target)
 
 
 # ---------------------------------------------------------------- tìm mục tiêu

@@ -12,9 +12,9 @@ const HudButton := preload("res://scripts/ui/hud_button.gd")
 
 ## Vứt vật phẩm ra map (kéo ra ngoài bảng).
 signal item_dropped(id: String, amount: int)
+## Bảng túi vừa đóng (cả khi đóng bằng phím E / Esc). Bảng rương dùng tín hiệu này để đóng theo.
+signal closed
 
-const MINIMAP_BOTTOM := 236.0   # minimap chiếm từ y = 16 tới 236 (px) ở góc trên phải
-const BAG_SIZE_H := 0.115       # nút túi / chiều cao viewport
 const SLOT := 52.0              # cạnh một ô
 const GAP := 4                  # khoảng hở giữa các ô
 const BTN_H := 40.0
@@ -29,7 +29,8 @@ const TEXT_DIM := Color(0.85, 0.78, 0.62)
 var inventory
 
 var _bag: Control
-var _overlay: Control
+var _modal_overlay: Control
+var _ui_manager: Node
 var _panel: PanelContainer
 var _count_label: Label
 var _detail_name: Label
@@ -45,6 +46,13 @@ var _ghost_id := ""
 var _ghost_pos := Vector2.ZERO
 var _views: Array = []
 var _selected := -1
+var _hide_bag_button := false
+var _btn_store: Button          # nút "Cất" (chỉ hiện khi đang mở rương)
+var _side_offset := 0.0         # dịch bảng túi sang ngang khi bảng rương hiện bên cạnh
+## Đối tượng nhận đồ khi đang mở rương (chest_ui.gd), null khi không có rương.
+## Cần 2 hàm: contains_point(global_pos) -> bool và store_from_bag(index: int).
+var storage_target: Object = null
+@export var panel_offset := Vector2.ZERO
 
 
 # ---------------------------------------------------------------- một ô túi
@@ -139,6 +147,7 @@ class SlotView extends Control:
 # ---------------------------------------------------------------- dựng giao diện
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	mouse_filter = Control.MOUSE_FILTER_IGNORE # đóng bảng thì không chặn chạm ở phần còn lại của màn hình
 	get_viewport().size_changed.connect(_layout)
 
@@ -156,8 +165,14 @@ func bag_button() -> Control:
 	return _bag
 
 
+func set_bag_button_visible(on: bool) -> void:
+	_hide_bag_button = not on
+	if _bag != null:
+		_bag.visible = on and not is_open()
+
+
 func is_open() -> bool:
-	return _overlay != null and _overlay.visible
+	return _panel != null and _panel.visible
 
 
 func toggle() -> void:
@@ -170,20 +185,47 @@ func toggle() -> void:
 func open() -> void:
 	_selected = -1
 	_set_splitting(false)
-	_overlay.visible = true
+	_panel.visible = true
+	_modal_overlay.visible = true
+	_ui_manager.call("set_inventory_open", true)
 	_layout()
 	_refresh()
 
 
 func close() -> void:
-	_overlay.visible = false
+	_panel.visible = false
+	_modal_overlay.visible = false
+	_ui_manager.call("set_inventory_open", false)
+	_bag.visible = not _hide_bag_button
+	closed.emit()
+
+
+## Lớp phủ modal (chứa bảng túi); bảng rương cũng được thêm vào đây.
+func modal_overlay() -> Control:
+	return _modal_overlay
+
+
+func panel_global_rect() -> Rect2:
+	return _panel.get_global_rect()
+
+
+## Dịch bảng túi sang phải/trái x px so với giữa màn hình (0 = về chỗ cũ).
+func set_side_offset(x: float) -> void:
+	_side_offset = x
+	_layout()
+
+
+## Bật/tắt chế độ rương: hiện nút "Cất" và cho phép thả vật phẩm lên bảng rương.
+func set_storage_target(target: Object) -> void:
+	storage_target = target
+	_refresh()
 
 
 ## Thông báo nổi ngắn (nhận đồ, túi đầy, thiếu công cụ...).
 func toast(text: String, color: Color = TEXT) -> void:
 	if _toasts == null:
 		return
-	var l := _make_label(text, 24, color)
+	var l := make_label(text, 24, color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.add_theme_color_override("font_outline_color", Color(0.12, 0.07, 0.04, 0.95))
 	l.add_theme_constant_override("outline_size", 7)
@@ -199,29 +241,21 @@ func toast(text: String, color: Color = TEXT) -> void:
 
 
 func _build() -> void:
-	var bag := HudButton.new()
-	bag.icon_kind = "bag"
-	bag.auto_layout = false # vị trí đặt trong _layout (dưới minimap)
+	var bag := get_parent().get_node("InventoryButton") as HudButton
 	bag.tapped.connect(toggle)
 	_bag = bag
-	add_child(_bag)
 
 	_toasts = VBoxContainer.new()
 	_toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_toasts)
 
-	_overlay = Control.new()
-	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_overlay.visible = false
-	add_child(_overlay)
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0, 0, 0, 0.55)
-	dim.gui_input.connect(_on_dim_input) # chạm ra ngoài bảng để đóng
-	_overlay.add_child(dim)
-
-	_panel = PanelContainer.new()
+	_ui_manager = get_parent().get_parent()
+	_modal_overlay = _ui_manager.get_node("ModalOverlay") as Control
+	_modal_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	_panel = _modal_overlay.get_node("InventoryPanel") as PanelContainer
+	_panel.visible = false
+	_panel.process_mode = Node.PROCESS_MODE_ALWAYS
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = PANEL_BG
 	ps.border_color = PANEL_BORDER
@@ -230,18 +264,17 @@ func _build() -> void:
 	ps.set_content_margin_all(18)
 	ps.anti_aliasing = true
 	_panel.add_theme_stylebox_override("panel", ps)
-	_overlay.add_child(_panel)
 	var vbox := VBoxContainer.new()
 	_panel.add_child(vbox)
 
 	var header := HBoxContainer.new()
 	vbox.add_child(header)
-	var title := _make_label("Túi đồ", FS_TITLE, TEXT)
+	var title := make_label("Túi đồ", FS_TITLE, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
-	_count_label = _make_label("", FS_TEXT, TEXT_DIM)
+	_count_label = make_label("", FS_TEXT, TEXT_DIM)
 	header.add_child(_count_label)
-	var close_btn := _make_button("✕", BTN_H)
+	var close_btn := make_button("✕", BTN_H)
 	close_btn.pressed.connect(close)
 	header.add_child(close_btn)
 
@@ -262,9 +295,9 @@ func _build() -> void:
 	var grid_w := ItemDefs.COLUMNS * SLOT + (ItemDefs.COLUMNS - 1) * GAP
 
 	vbox.add_child(HSeparator.new())
-	_detail_name = _make_label("", FS_NAME, SlotView.SELECTED)
+	_detail_name = make_label("", FS_NAME, SlotView.SELECTED)
 	vbox.add_child(_detail_name)
-	_detail_desc = _make_label("", FS_TEXT, TEXT)
+	_detail_desc = make_label("", FS_TEXT, TEXT)
 	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_desc.custom_minimum_size = Vector2(grid_w, 52.0)
 	vbox.add_child(_detail_desc)
@@ -272,17 +305,21 @@ func _build() -> void:
 	_row_main = HBoxContainer.new()
 	_row_main.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(_row_main)
-	_btn_split = _make_button("Tách", BTN_H * 2.0)
+	_btn_split = make_button("Tách", BTN_H * 2.0)
 	_btn_split.pressed.connect(_set_splitting.bind(true))
 	_row_main.add_child(_btn_split)
-	var btn_sort := _make_button("Sắp xếp", BTN_H * 2.0)
+	var btn_sort := make_button("Sắp xếp", BTN_H * 2.0)
 	btn_sort.pressed.connect(_sort)
 	_row_main.add_child(btn_sort)
+	_btn_store = make_button("Cất", BTN_H * 2.0)
+	_btn_store.visible = false
+	_btn_store.pressed.connect(_store_selected)
+	_row_main.add_child(_btn_store)
 
 	_row_split = HBoxContainer.new() # cùng chiều cao với _row_main nên bảng không đổi kích thước khi chuyển qua lại
 	_row_split.visible = false
 	vbox.add_child(_row_split)
-	_row_split.add_child(_make_label("Tách", FS_TEXT, TEXT))
+	_row_split.add_child(make_label("Tách", FS_TEXT, TEXT))
 	_split_slider = HSlider.new()
 	_split_slider.min_value = 1
 	_split_slider.step = 1
@@ -291,25 +328,26 @@ func _build() -> void:
 	_split_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_split_slider.value_changed.connect(_on_split_changed)
 	_row_split.add_child(_split_slider)
-	_split_label = _make_label("1", FS_NAME, SlotView.SELECTED)
+	_split_label = make_label("1", FS_NAME, SlotView.SELECTED)
 	_split_label.custom_minimum_size.x = 40.0
 	_split_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_row_split.add_child(_split_label)
-	var btn_ok := _make_button("OK", BTN_H * 1.5)
+	var btn_ok := make_button("OK", BTN_H * 1.5)
 	btn_ok.pressed.connect(_confirm_split)
 	_row_split.add_child(btn_ok)
-	var btn_cancel := _make_button("Huỷ", BTN_H * 1.5)
+	var btn_cancel := make_button("Huỷ", BTN_H * 1.5)
 	btn_cancel.pressed.connect(_set_splitting.bind(false))
 	_row_split.add_child(btn_cancel)
 
 	_ghost = Control.new() # nằm trên cùng để icon đang kéo không bị bảng che
 	_ghost.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ghost.z_index = 1002
 	_ghost.draw.connect(_draw_ghost)
-	_overlay.add_child(_ghost)
+	get_parent().add_child(_ghost)
 
 
-func _make_label(text: String, font_size: int, color: Color) -> Label:
+static func make_label(text: String, font_size: int, color: Color) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", font_size)
@@ -317,7 +355,7 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 	return l
 
 
-func _make_button(text: String, min_w: float) -> Button:
+static func make_button(text: String, min_w: float) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE # không cướp phím của người chơi
@@ -343,13 +381,10 @@ func _layout() -> void:
 	if _bag == null:
 		return
 	var vp := get_viewport_rect().size
-	var d := vp.y * BAG_SIZE_H
-	_bag.size = Vector2(d, d)
-	_bag.position = Vector2(vp.x - 16.0 - d, MINIMAP_BOTTOM + 14.0)
 	_toasts.custom_minimum_size.x = vp.x * 0.5
 	_toasts.position = Vector2(vp.x * 0.25, vp.y * 0.17)
 	_panel.reset_size()
-	_panel.position = ((vp - _panel.size) * 0.5).floor()
+	_panel.position = ((vp - _panel.size) * 0.5).floor() + panel_offset + Vector2(_side_offset, 0.0)
 
 
 # ---------------------------------------------------------------- cập nhật
@@ -373,6 +408,9 @@ func _refresh() -> void:
 	else:
 		_detail_name.text = "%s  x%d" % [ItemDefs.item_name(str(s["id"])), int(s["count"])]
 		_detail_desc.text = str(ItemDefs.get_item(str(s["id"])).get("desc", ""))
+	if _btn_store != null:
+		_btn_store.visible = storage_target != null
+		_btn_store.disabled = s.is_empty()
 	var can_split := not s.is_empty() and int(s["count"]) >= 2
 	_btn_split.disabled = not can_split
 	if can_split:
@@ -411,6 +449,12 @@ func _sort() -> void:
 	inventory.sort_slots()
 
 
+## Nút "Cất": chuyển cả chồng đang chọn sang rương.
+func _store_selected() -> void:
+	if storage_target != null and _selected >= 0:
+		storage_target.call("store_from_bag", _selected)
+
+
 func _on_item_added(id: String, amount: int) -> void:
 	toast("+%d %s" % [amount, ItemDefs.item_name(id)])
 
@@ -419,11 +463,6 @@ func _on_slot_tapped(index: int) -> void:
 	_selected = index
 	_set_splitting(false)
 	_refresh()
-
-
-func _on_dim_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton or event is InputEventScreenTouch) and event.pressed:
-		close()
 
 
 # ---------------------------------------------------------------- kéo thả
@@ -449,6 +488,8 @@ func _on_drag_ended(index: int, pos: Vector2) -> void:
 		if target != index:
 			inventory.move_slot(index, target)
 			_selected = target
+	elif storage_target != null and bool(storage_target.call("contains_point", pos)): # thả lên bảng rương = cất vào rương
+		storage_target.call("store_from_bag", index)
 	elif not _panel.get_global_rect().has_point(pos): # thả ra ngoài bảng = vứt ra map
 		var id := str(s["id"])
 		var amount := int(s["count"])
@@ -466,9 +507,15 @@ func _draw_ghost() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_open():
+		var key := event as InputEventKey
+		if key != null and key.pressed and not key.echo and key.physical_keycode == KEY_E:
+			close()
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("ui_cancel"):
+			close()
+			get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("inventory"):
 		toggle()
-		get_viewport().set_input_as_handled()
-	elif is_open() and event.is_action_pressed("ui_cancel"):
-		close()
 		get_viewport().set_input_as_handled()

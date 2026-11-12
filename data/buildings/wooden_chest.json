@@ -1,0 +1,10 @@
+{
+  "id": "wooden_chest",
+  "name": "Rương gỗ",
+  "texture": "res://assets/wooden_chest.png",
+  "texture_open": "res://assets/wooden_chest_open.png",
+  "storage_slots": 21,
+  "grid_size": [1, 1],
+  "trigger_size": [0.8, 0.8],
+  "collider_enabled": true
+}

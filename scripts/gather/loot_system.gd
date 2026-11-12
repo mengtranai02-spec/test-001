@@ -6,8 +6,7 @@ extends Node
 const ItemDefs := preload("res://scripts/inventory/item_defs.gd")
 
 const SCAN_INTERVAL := 0.1       # giây giữa các lần quét vật phẩm quanh người chơi
-const PICKUP_RADIUS := 150.0     # vật phẩm trong bán kính này (px) thì hiện trong danh sách và nhặt được
-const SORT_BUCKET := 24.0        # xếp theo khoảng cách làm tròn theo nấc này để danh sách không nhảy loạn khi đi lại
+const PICKUP_RADIUS := 72.0      # gần bằng tầm nhặt vật thể (0.9 ô iso)
 const MAX_DROPS := 150           # quá số này thì vật phẩm cũ nhất biến mất
 const SCATTER_MIN := 34.0        # vật phẩm văng cách vật thể tối thiểu / tối đa (px)
 const SCATTER_MAX := 78.0
@@ -20,6 +19,7 @@ var map
 var player: Node2D
 var inventory
 var hud                          # cần hàm toast(text) và is_open()
+var gather_system
 
 var _drops: Array = []           # mọi vật phẩm đang nằm trên đất
 var _nearby: Array = []          # các mục trong tầm nhặt, gần nhất trước
@@ -101,6 +101,10 @@ func setup(p_map, p_player: Node2D, p_inventory, p_hud) -> void:
 	map.world_reset.connect(_on_world_reset)
 
 
+func set_gather_system(system) -> void:
+	gather_system = system
+
+
 func _physics_process(delta: float) -> void:
 	if map == null or not is_instance_valid(player):
 		return
@@ -116,10 +120,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if is_instance_valid(hud) and hud.is_open():
 		return
-	if _nearby.is_empty():
-		return
-	var first: Dictionary = _nearby[0]
-	pickup(first["drop"])
+	var nearest_drop: Dictionary = {}
+	var nearest_distance := INF
+	for entry: Dictionary in _nearby:
+		var drop: Drop = entry["drop"]
+		var distance := drop.global_position.distance_to(player.global_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_drop = entry
+	var gather_target: Dictionary = gather_system.get_pickup_target() if is_instance_valid(gather_system) else {}
+	var gather_distance := INF
+	if not gather_target.is_empty():
+		gather_distance = Vector2(gather_target["world"]).distance_to(player.global_position)
+	if gather_distance <= nearest_distance:
+		gather_system.pickup_target()
+	elif not nearest_drop.is_empty():
+		pickup(nearest_drop["drop"])
 	get_viewport().set_input_as_handled()
 
 
@@ -213,7 +229,7 @@ func _rescan() -> void:
 			continue
 		found.append({
 			"drop": drop, "id": drop.id, "count": drop.count,
-			"bucket": int(dist / SORT_BUCKET), "order": drop.get_instance_id(),
+			"distance": dist, "order": drop.get_instance_id(),
 		})
 	found.sort_custom(_by_distance)
 
@@ -229,10 +245,10 @@ func _rescan() -> void:
 
 
 static func _by_distance(a: Dictionary, b: Dictionary) -> bool:
-	var ba: int = int(a["bucket"])
-	var bb: int = int(b["bucket"])
-	if ba != bb:
-		return ba < bb
+	var da: float = float(a["distance"])
+	var db: float = float(b["distance"])
+	if not is_equal_approx(da, db):
+		return da < db
 	return int(a["order"]) < int(b["order"])
 
 
